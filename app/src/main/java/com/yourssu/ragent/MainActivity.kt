@@ -1,10 +1,10 @@
 package com.yourssu.ragent
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +21,9 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.firestore
+import com.yourssu.ragent.model.UserProfile
 import com.yourssu.ragent.ui.RAGentApp
 import com.yourssu.ragent.ui.auth.LoginScreen
 import com.yourssu.ragent.ui.theme.RAGentTheme
@@ -52,8 +55,23 @@ class MainActivity : ComponentActivity() {
                         errorMessage = errorMessage,
                         onGoogleLoginClick = {
                             scope.launch {
-                                errorMessage = signInWithGoogle()
-                                user = auth.currentUser
+                                val loginError = signInWithGoogle()
+                                if (loginError != null) {
+                                    errorMessage = loginError
+                                    return@launch
+                                }
+
+                                val signedInUser = auth.currentUser
+                                if (signedInUser == null) {
+                                    errorMessage = "로그인 사용자 정보를 확인하지 못했습니다."
+                                    return@launch
+                                }
+
+                                val saveError = saveUser(signedInUser)
+                                errorMessage = saveError
+                                if (saveError == null) {
+                                    user = signedInUser
+                                }
                             }
                         }
                     )
@@ -69,6 +87,50 @@ class MainActivity : ComponentActivity() {
             Firebase.auth.signInAnonymously().await().user
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private suspend fun saveUser(user: FirebaseUser): String? {
+        return try {
+            val profile = UserProfile(
+                uid = user.uid,
+                email = user.email.orEmpty(),
+                displayName = user.displayName ?: "익명의 사용자",
+                photoUrl = user.photoUrl?.toString().orEmpty(),
+                authProviders = user.providerData
+                    .map { it.providerId }
+                    .filter { it != "firebase" },
+                isEmailVerified = user.isEmailVerified
+            )
+
+            val userRef = Firebase.firestore
+                .collection("users")
+                .document(user.uid)
+
+            val snapshot = userRef.get().await()
+            val commonData = mapOf(
+                "uid" to profile.uid,
+                "email" to profile.email,
+                "displayName" to profile.displayName,
+                "photoUrl" to profile.photoUrl,
+                "authProviders" to profile.authProviders,
+                "isEmailVerified" to profile.isEmailVerified,
+                "updatedAt" to FieldValue.serverTimestamp(),
+                "lastLoginAt" to FieldValue.serverTimestamp()
+            )
+
+            if (snapshot.exists()) {
+                userRef.update(commonData).await()
+            } else {
+                userRef.set(
+                    commonData + ("createdAt" to FieldValue.serverTimestamp())
+                ).await()
+            }
+
+            null
+        } catch (e: Exception) {
+            Log.e("SaveUser", "에러 발생: ${e.message}", e)
+            "사용자 정보 저장에 실패했습니다."
         }
     }
 

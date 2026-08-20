@@ -14,9 +14,11 @@ RAGent는 여러 소프트웨어 프로젝트를 하나의 Android 앱에서 관
 - GitHub 코드와 Notion 문서를 RAG 지식으로 활용
 - 프로젝트별 사용자 및 권한 관리
 - 프로젝트의 공용 데이터와 RAG 데이터는 Firebase에서 공유
-- GitHub 변경사항은 Webhook을 이용해 Firebase와 자동 동기화
-- Local LLM을 우선 사용
-- GPT, Claude, Gemini 등 Cloud LLM API는 나중에 추가
+- GitHub / Notion은 공개 링크 입력을 기본 연결 방식으로 사용
+- Cloud Functions가 변경 탐지, Chunking, Vector 갱신을 담당
+- Gemini Embedding API와 Firestore Vector Search로 RAG Context 구성
+- Gemini 생성 모델로 최종 답변 생성
+- GitHub API, Notion API, Webhook은 필요한 경우 선택 기능으로 추가
 - 초기 개발에서는 전체 기능을 한꺼번에 구현하지 않고 앱/Firebase 기본 구조부터 구축
 
 
@@ -49,6 +51,14 @@ Firebase는 여러 사용자가 하나의 프로젝트 정보를 공유하기 �
 - Embedding / Vector
 - Source Metadata
 - 동기화 상태
+
+### Cloud Functions
+
+- 공개 GitHub / Notion 링크의 변경 확인
+- 변경된 Source 데이터 처리
+- Chunking 및 Embedding 요청
+- Gemini 생성 모델 호출
+- 사용자별 요청 제한
 
 개념적인 데이터 구조:
 
@@ -88,11 +98,11 @@ Android 앱은 Firebase의 프로젝트 정보를 읽고 쓰는 Client 역할을
 - Repository 표시
 - Agent UI
 - Firebase RAG 데이터 사용
-- Local LLM 실행
+- 동기화 요청 전송
+- Agent 질문 요청 전송
 
-Local LLM은 각 Android 기기에서 실행한다.
-
-즉 공용 프로젝트 지식은 Firebase에서 공유하고, 최종 AI 답변 생성은 각 사용자 기기의 Local LLM에서 수행하는 구조를 기본 방향으로 한다.
+Android 앱은 최종 답변을 직접 생성하지 않는다. 프로젝트 진입 시 동기화를 요청하고 Agent 질문을 Cloud Functions에 전달한다.
+공용 프로젝트 지식과 RAG 데이터는 Firebase에서 프로젝트 참여자들이 공유한다.
 
 
 ## 5. 프로젝트 생성
@@ -192,28 +202,26 @@ Phase 1에서는 실제 Firebase 채팅 전송을 구현하지 않고, Chat 화�
 
 ## 7. GitHub 동기화
 
-GitHub Repository의 최신 상태를 Firebase와 동기화하는 것이 중요하다.
-
-최종적으로는 GitHub Webhook 기반 구조를 사용한다.
+GitHub Repository는 공개 URL 입력을 기본 연결 방식으로 사용한다.
+GitHub API와 Webhook은 더 빠르고 정확한 동기화가 필요한 경우 선택적으로 제공한다.
 
 흐름:
 
-GitHub Repository
-→ git push
-→ GitHub Webhook
-→ Firebase Cloud Function
-→ 변경사항 확인
-→ 필요한 데이터 갱신
+프로젝트 화면 진입
+→ Android 앱이 Cloud Functions에 동기화 요청
+→ 서버가 마지막 확인 시각과 GitHub 최신 상태 비교
+→ 변경된 파일만 처리
 → Firestore 최신화
 
-Android 앱이 Repository 전체를 계속 확인하는 방식보다 GitHub가 변경 발생 시 서버에 알려주는 Event 기반 구조를 목표로 한다.
+여러 사용자가 같은 프로젝트에 진입해도 동기화가 반복되지 않도록 마지막 확인 시각과 콘텐츠 Hash를 저장한다.
+Repository 전체가 아니라 변경된 파일과 영향을 받은 Chunk만 다시 계산한다.
 
 
-## 8. GitHub Webhook
+## 8. GitHub API / Webhook (선택 기능)
 
-Webhook은 Firestore에 직접 연결하지 않는다.
+공개 링크 기반 동기화를 먼저 구현한 뒤, 필요할 경우 GitHub API 또는 Webhook을 추가한다.
 
-Firebase Cloud Function에 HTTP Endpoint를 만들고 GitHub Webhook이 해당 Endpoint로 요청을 보내도록 한다.
+Webhook을 사용할 경우 Firestore에 직접 연결하지 않고 Firebase Cloud Function의 HTTP Endpoint를 사용한다.
 
 구조:
 
@@ -229,25 +237,13 @@ Webhook 설정 시 필요한 값:
 
 Repository 관리자가 GitHub Repository의 Settings → Webhooks에서 등록한다.
 
-초기에는 push event만 처리하면 된다.
-
-Webhook Secret을 사용해 GitHub에서 전달된 요청이 정상적인 GitHub 요청인지 검증할 수 있도록 한다.
-
-초기 구현에서는 실제 RAG 갱신까지 한 번에 만들지 않는다.
-
-먼저:
-
-GitHub Push
-→ Firebase Function 호출
-→ Push / Commit 정보 확인
-→ Firestore에 최신 Commit SHA 저장
-
-여기까지 성공시키고 이후 기능을 단계적으로 추가한다.
+Webhook Secret으로 요청을 검증하고 Push Event를 활용한다.
+API와 Webhook은 공개 링크 기반 동기화의 정확도와 속도를 개선할 필요가 생겼을 때 추가한다.
 
 
 ## 9. GitHub 변경사항 처리
 
-향후 GitHub Webhook이 Push를 감지하면 변경된 파일을 확인한다.
+Cloud Functions가 GitHub Source의 변경을 확인하면 변경된 파일을 처리한다.
 
 Repository 전체를 매번 다시 처리하지 않는다.
 
@@ -267,11 +263,11 @@ README.md 변경
 
 ## 10. Notion 동기화
 
-Notion도 GitHub와 마찬가지로 최신 프로젝트 문서를 Firebase와 동기화하는 것을 목표로 한다.
+Notion은 공개 페이지 URL 입력을 기본 연결 방식으로 사용한다.
+프로젝트 화면 진입 시 Android 앱이 Cloud Functions에 동기화를 요청하고, 서버는 마지막 확인 시각과 콘텐츠 Hash를 기준으로 변경된 부분만 처리한다.
 
-초기 구현에서는 Notion 실제 API 연동을 하지 않는다.
-
-먼저 Docs UI를 Mock Data로 구축하고 이후 Notion API 연동 및 변경된 페이지 갱신 기능을 추가한다.
+Docs 화면에서는 우선 Notion 공개 페이지를 WebView로 표시한다.
+Notion API 연결은 앱 내부 편집이나 안정적인 동기화가 필요한 경우 선택적으로 제공한다.
 
 
 ## 11. RAG의 역할
@@ -283,14 +279,14 @@ RAG는 직접 답변을 생성하는 AI가 아니다.
 전체 흐름:
 
 GitHub + Notion
-→ 데이터 수집
+→ Cloud Functions 변경 탐지
 → Chunking
-→ Embedding
-→ Vector 저장
+→ Gemini Embedding API
+→ Firestore Vector 저장
 
 사용자 질문
 → 질문 Embedding
-→ Vector Similarity Search
+→ Firestore Vector Search
 → 관련 Chunk Top-K 검색
 → LLM Prompt Context
 → LLM
@@ -314,6 +310,7 @@ GitHub + Notion
 - content
 - embedding
 - sourceVersion
+- contentHash
 
 이를 이용해 향후 Agent 답변에 출처를 표시할 수 있도록 한다.
 
@@ -326,11 +323,11 @@ Notion:
 - 문단
 - Block
 
-등의 구조를 기준으로 Chunking한다.
+등의 구조를 기준으로 Cloud Functions에서 Chunking한다.
 
 GitHub Source Code:
 
-단순 글자 수 기준으로 자르기보다 향후 가능한 경우
+단순 글자 수 기준으로 자르기보다 가능한 경우
 
 - Class
 - Function
@@ -339,22 +336,19 @@ GitHub Source Code:
 등 코드 구조를 기준으로 Chunking할 수 있도록 설계한다.
 
 
-## 14. Local LLM 우선
+## 14. Gemini 기반 답변
 
-첫 번째 LLM Provider는 Local LLM으로 구현한다.
+초기 LLM은 Firebase AI Logic과 Gemini 생성 모델을 사용한다.
 
 목표:
 
 RAG
-→ Prompt 생성
-→ LocalLlmProvider
-→ llama.cpp
-→ GGUF Local Model
-→ 답변
+→ 관련 Context 구성
+→ Cloud Functions
+→ Gemini 생성 모델
+→ 답변 + 출처
 
-Android에서 llama.cpp 기반 GGUF 모델을 실행하는 구조를 고려한다.
-
-모델은 APK에 반드시 포함하지 않아도 되며, 향후 Local AI 사용 시 별도로 다운로드하는 방식으로 확장할 수 있다.
+Gemini 2.5 Flash 또는 Flash-Lite를 답변 품질, 속도와 비용을 비교해 선택한다.
 
 
 ## 15. LLM Provider 구조
@@ -364,25 +358,22 @@ RAG가 특정 LLM에 종속되지 않도록 한다.
 개념:
 
 LlmProvider
-├─ LocalLlmProvider
-├─ OpenAiLlmProvider
-├─ ClaudeLlmProvider
-└─ GeminiLlmProvider
+├─ GeminiLlmProvider
+├─ LocalLlmProvider (후순위)
+├─ OpenAiLlmProvider (선택)
+└─ ClaudeLlmProvider (선택)
 
-초기에는 LocalLlmProvider를 우선한다.
-
-OpenAI, Claude, Gemini 등의 Cloud API는 현재 구현하지 않는다.
-
-나중에 Provider만 추가할 수 있도록 RAG와 LLM 호출 로직을 분리한다.
+초기에는 Firebase AI Logic과 Gemini를 우선 구현한다.
+Local LLM과 다른 Cloud LLM Provider는 이후 필요성과 운영 여건에 따라 추가한다.
 
 
 ## 16. 전체 최종 데이터 흐름
 
-GitHub / Notion
+GitHub / Notion 공개 링크
        ↓
-최신 프로젝트 원본
+Cloud Functions 동기화 요청
        ↓
-Webhook / Sync
+변경 탐지 / Chunking / Embedding
        ↓
 Firebase
        │
@@ -395,15 +386,17 @@ Firebase
        ↓
 Android RAGent
        ↓
-RAG Retrieval
+질문 요청
+       ↓
+Cloud Functions
+       ↓
+Firestore Vector Search
        ↓
 관련 Context
        ↓
-Local LLM
+Gemini 생성 모델
        ↓
 답변 + 출처
-
-향후 필요하면 Local LLM 대신 Cloud LLM Provider를 선택할 수 있도록 확장한다.
 
 
 ## 17. 개발 단계
@@ -433,54 +426,56 @@ Jetpack Compose 기반 앱 구조와 Mock Data를 사용한 주요 화면을 구
 - 여러 사용자의 프로젝트 공유
 
 
-### Phase 3 — GitHub
+### Phase 3 — Firebase 서버 기반
 
-- GitHub Repository 연결
-- Repository 정보 가져오기
-- Repository / 파일 탐색
+- Firebase Blaze 요금제 전환
 - Firebase Cloud Function
-- GitHub Webhook
-- Push Event 수신
-- 최신 Commit SHA 저장
-- 변경된 파일 동기화
+- TypeScript 서버 구성
+- 동기화 요청 Endpoint
+- 사용자별 요청 제한
 
 
-### Phase 4 — Notion
+### Phase 4 — 공개 Source 연결
 
-- Notion API 연결
-- Notion Page / Block 가져오기
-- Docs UI에 렌더링
-- Firebase와 동기화
+- 공개 GitHub Repository URL 입력
+- 공개 Notion Page URL 입력
+- Docs WebView 표시
+- Repository 탐색 화면 연결
+- 프로젝트 진입 시 서버 동기화 요청
+- 마지막 확인 시각과 콘텐츠 Hash 저장
 
 
 ### Phase 5 — RAG
 
-- Chunking
-- Local Embedding
-- Vector 생성
+- 변경된 GitHub / Notion Source 감지
+- 변경된 데이터만 Chunking
+- Gemini Embedding API
+- Firestore Vector Search
 - Firebase에 공용 RAG 데이터 저장
-- Similarity Search
 - Top-K Retrieval
 - Source Metadata
-- 변경된 GitHub / Notion 데이터만 RAG 재생성
+- 프로젝트 참여자 간 RAG 데이터 공유
 
 
-### Phase 6 — Local LLM
+### Phase 6 — Gemini Agent
 
-- llama.cpp
-- GGUF Model
-- LocalLlmProvider
-- RAG Context와 사용자 질문을 Prompt로 구성
+- Firebase AI Logic
+- Gemini 생성 모델
+- RAG Context 기반 Prompt 구성
 - Agent 답변 생성
+- 답변 출처 표시
 
 
-### Phase 7 — Cloud LLM
+### Phase 7 — 선택 기능 확장
 
 필요할 경우 이후 추가:
 
+- GitHub API
+- GitHub Webhook
+- Notion API
 - OpenAI
 - Claude
-- Gemini
+- Local LLM / llama.cpp
 - 기타 Provider
 
 
@@ -495,8 +490,9 @@ Jetpack Compose 기반 앱 구조와 Mock Data를 사용한 주요 화면을 구
 - Firebase의 RAG 데이터는 가능한 최신 원본과 동기화한다.
 - 변경되지 않은 데이터를 불필요하게 다시 Embedding하지 않는다.
 - RAG와 LLM의 책임을 분리한다.
-- Local LLM을 우선한다.
-- Cloud LLM API는 나중에 추가한다.
+- Gemini 기반 서버 답변을 우선한다.
+- GitHub API, Notion API, Webhook은 선택 기능으로 둔다.
+- Local LLM과 다른 Provider는 필요할 때 추가한다.
 - Mock Data로 전체 앱 흐름을 먼저 완성한다.
 
 
@@ -506,7 +502,7 @@ Jetpack Compose 기반 앱 구조와 Mock Data를 사용한 주요 화면을 구
 
 Android Studio에서 생성한 빈 프로젝트를 기준으로 작업한다.
 
-현재는 Phase 1만 우선 구현한다.
+현재는 Phase 2의 Firebase 실제 데이터 연동을 우선 구현한다.
 
 즉:
 
@@ -518,68 +514,38 @@ Project List
 
 흐름이 정상적으로 동작하는 Android 앱의 기본 뼈대를 만든다.
 
-향후 Firebase, GitHub Webhook, Notion, RAG, Local LLM을 단계적으로 추가할 예정이므로 각 기능이 지나치게 강하게 결합되지 않도록 구조를 설계한다.
+향후 Firestore, Cloud Functions, 공개 링크 동기화, RAG, Gemini를 단계적으로 추가할 예정이므로 각 기능이 지나치게 강하게 결합되지 않도록 구조를 설계한다.
 
-현재 단계에서 GitHub API, Notion API, Webhook, Embedding, Vector Search, llama.cpp, Cloud LLM API를 억지로 구현하지 않는다.
+현재 단계에서 GitHub API, Notion API, Webhook, Embedding, Vector Search, Gemini를 한 번에 구현하지 않는다.
 
 먼저 앱이 정상적으로 빌드되고 실행되는 것을 최우선으로 한다.
 
 
-## 21. Local LLM 구현 방향
+## 21. Gemini Agent 구현 방향
 
-현재는 Phase 1 개발 중이므로 실제 Local LLM 기능을 구현하지 않는다.
+초기 Agent는 Firebase AI Logic과 Gemini 생성 모델을 사용한다.
 
-다음 내용은 향후 Local LLM Phase에서의 구현 방향으로 사용한다.
+### 답변 흐름
 
-### 기본 모델
+사용자 질문
+→ Cloud Functions 요청
+→ 질문 Embedding
+→ Firestore Vector Search
+→ 관련 Chunk Top-K 검색
+→ Gemini 생성 모델에 Context 전달
+→ 답변 + 출처
 
-기본 Local LLM은 Qwen3-4B의 GGUF Q4 양자화 모델을 우선 고려한다.
+### 모델 선택
 
-Android 기기에서 실행 가능한 크기와 품질의 균형을 우선하며, 이후 성능 테스트 결과에 따라 다른 GGUF 모델로 교체할 수 있도록 설계한다.
-
-### 실행 방식
-
-Android 앱에서는 llama.cpp 기반으로 GGUF 모델을 실행하는 방향을 기본으로 한다.
-
-LLM 호출 구조는 특정 모델에 강하게 결합하지 않고, `LocalLlmProvider` 같은 Provider 계층을 통해 분리한다.
-
-### 모델 배포
-
-Qwen3-4B GGUF 모델 파일은 APK에 포함하지 않는다.
-
-사용자가 Local AI 기능을 사용할 때 필요한 모델을 별도로 다운로드하는 구조로 설계한다.
-
-초기 앱 설치 크기를 줄이고, 사용자가 필요할 때만 모델 저장 공간을 사용하도록 한다.
+Gemini 2.5 Flash 또는 Flash-Lite를 답변 품질, 속도와 비용을 비교해 선택한다.
 
 ### 답변 표시
 
-Agent 답변은 생성이 모두 끝날 때까지 기다렸다가 한 번에 표시하지 않는다.
+답변은 가능하면 streaming 방식으로 표시한다. 초기 구현에서는 서버 응답 구조를 먼저 안정화하고 이후 UI streaming을 추가한다.
 
-기본 방향은 token streaming 방식으로, 생성되는 토큰을 실시간으로 UI에 표시한다.
+### Local LLM
 
-이를 통해 Local LLM 응답이 느린 기기에서도 사용자가 진행 상태를 바로 확인할 수 있게 한다.
-
-### RAG Context 구성
-
-RAG에서는 Repository 전체나 Notion 전체 문서를 매번 LLM에 전달하지 않는다.
-
-사용자 질문과 관련된 GitHub 코드 Chunk / Notion Chunk만 검색해서 Prompt Context로 전달한다.
-
-초기 기준으로 Top-K 3~5개 Chunk 정도를 고려한다.
-
-Top-K 값은 모델 컨텍스트 길이, 응답 품질, Android 기기 성능을 보면서 조정한다.
-
-### Phase 범위
-
-Phase 1에서는 다음을 구현하지 않는다.
-
-- Qwen3-4B 실제 실행
-- llama.cpp 연동
-- GGUF 모델 다운로드
-- token streaming 구현
-- 실제 Embedding / Vector Search
-
-Phase 1에서는 앱 기본 흐름과 Mock UI를 우선 완성하고, Local LLM은 이후 Phase에서 단계적으로 추가한다.
+Local LLM, llama.cpp, GGUF 모델은 Gemini 기반 Agent 이후 필요성과 운영 여건을 확인한 뒤 선택적으로 검토한다.
 
 
 ## 22. Phase 1 완료 상태
@@ -603,7 +569,7 @@ Phase 1은 완료된 것으로 본다.
 - ChatList, DM, Members 탭의 스크롤 위치가 화면 이동 후에도 복원된다.
 - 시스템 뒤로가기와 앱 내부 뒤로가기 흐름이 일관되게 동작한다.
 - 라이트 모드와 다크 모드 색상이 기본 적용되어 있다.
-- 실제 Firebase, GitHub API, Notion API, RAG, Local LLM 기능은 구현하지 않았다.
+- Firebase Authentication은 구현했고, Firestore·Cloud Functions·GitHub / Notion 동기화·RAG·Gemini는 이후 단계에서 구현한다.
 
 Phase 1 PR / 기록:
 
@@ -612,7 +578,7 @@ Phase 1 PR / 기록:
 - Initial commit: `e60c083e6e8de347b170ce4f838a4b82d9e446d5`
 - Notion 기록: `RAGent Pull Requests` 데이터베이스에 Phase 1 정리 페이지를 작성했다.
 
-다음 작업은 Phase 2부터 진행한다.
+다음 작업은 Phase 2의 Firestore 연동부터 진행한다.
 
 Phase 2의 우선순위:
 
@@ -622,4 +588,10 @@ Phase 2의 우선순위:
 - 프로젝트 생성, 조회, 삭제의 서버 저장 흐름 구현
 - 사용자 권한과 프로젝트 공개 범위 정책을 실제 데이터 기준으로 정리
 
-Phase 2에서도 GitHub API, Notion API, RAG, Local LLM은 아직 핵심 구현 범위가 아니다. 먼저 Firebase 기반 데이터 흐름을 안정화한다.
+Phase 2 이후에는 다음 순서로 진행한다.
+
+1. Firebase Blaze 전환 및 TypeScript Cloud Functions 구성
+2. 공개 GitHub / Notion 링크 연결과 서버 동기화 요청
+3. 변경된 Source의 Chunking 및 Gemini Embedding
+4. Firestore Vector Search와 Gemini Agent 답변
+5. GitHub API, Notion API, Webhook, Local LLM은 필요할 경우 선택 기능으로 추가
