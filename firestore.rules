@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function project(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId));
+    }
+
+    function isOwner(projectId) {
+      return signedIn() && project(projectId).data.ownerId == request.auth.uid;
+    }
+
+    function isMember(projectId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/projects/$(projectId)/members/$(request.auth.uid));
+    }
+
+    function isAdmin(projectId) {
+      return isMember(projectId)
+        && get(/databases/$(database)/documents/projects/$(projectId)/members/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    match /users/{userId} {
+      allow read, write: if isUser(userId);
+    }
+
+    match /projects/{projectId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+
+      allow read: if signedIn()
+        && (resource.data.visibility == 'Public' || isMember(projectId));
+
+      allow update: if isAdmin(projectId) || (
+        isOwner(projectId)
+        && request.resource.data.ownerId == resource.data.ownerId
+      );
+
+      allow delete: if isAdmin(projectId) || isOwner(projectId);
+    }
+
+    match /projects/{projectId}/members/{userId} {
+      allow read: if isMember(projectId) || isOwner(projectId);
+
+      allow create: if isAdmin(projectId) || (
+        isOwner(projectId)
+        && userId == request.auth.uid
+        && request.resource.data.role == 'Admin'
+      );
+
+      allow update, delete: if isAdmin(projectId);
+    }
+
+    // Any collection not explicitly listed above is denied by default.
+  }
+}
