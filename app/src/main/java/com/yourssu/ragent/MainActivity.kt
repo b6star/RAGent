@@ -97,9 +97,10 @@ class MainActivity : ComponentActivity() {
                 email = user.email.orEmpty(),
                 displayName = user.displayName ?: "익명의 사용자",
                 photoUrl = user.photoUrl?.toString().orEmpty(),
-                authProviders = user.providerData
-                    .map { it.providerId }
-                    .filter { it != "firebase" },
+                authProvider = user.providerData
+                    .firstOrNull { it.providerId != "firebase" }
+                    ?.providerId
+                    .orEmpty(),
                 isEmailVerified = user.isEmailVerified
             )
 
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity() {
                 "email" to profile.email,
                 "displayName" to profile.displayName,
                 "photoUrl" to profile.photoUrl,
-                "authProviders" to profile.authProviders,
+                "authProvider" to profile.authProvider,
                 "isEmailVerified" to profile.isEmailVerified,
                 "updatedAt" to FieldValue.serverTimestamp(),
                 "lastLoginAt" to FieldValue.serverTimestamp()

@@ -37,7 +37,9 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid;
 
       allow read: if signedIn()
-        && (resource.data.visibility == 'Public' || isMember(projectId));
+        && (resource.data.ownerId == request.auth.uid
+          || resource.data.visibility == 'Public'
+          || isMember(projectId));
 
       allow update: if isAdmin(projectId) || (
         isOwner(projectId)
@@ -48,13 +50,18 @@ service cloud.firestore {
     }
 
     match /projects/{projectId}/members/{userId} {
-      allow read: if isMember(projectId) || isOwner(projectId);
-
-      allow create: if isAdmin(projectId) || (
-        isOwner(projectId)
-        && userId == request.auth.uid
-        && request.resource.data.role == 'Admin'
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid
+        || isMember(projectId)
+        || isOwner(projectId)
       );
+
+      allow create: if request.resource.data.userId == userId
+        && (isAdmin(projectId) || (
+          isOwner(projectId)
+          && userId == request.auth.uid
+          && request.resource.data.role == 'Admin'
+        ));
 
       allow update, delete: if isAdmin(projectId);
     }

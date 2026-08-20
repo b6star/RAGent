@@ -2,12 +2,14 @@ package com.yourssu.ragent.ui
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yourssu.ragent.model.ChatMessage
 import com.yourssu.ragent.model.Person
 import com.yourssu.ragent.model.Project
@@ -18,6 +20,7 @@ import com.yourssu.ragent.ui.chat.ChatListScreen
 import com.yourssu.ragent.ui.chat.DirectMessageScreen
 import com.yourssu.ragent.ui.person.PersonDetailScreen
 import com.yourssu.ragent.ui.project.ProjectHomeScreen
+import com.yourssu.ragent.ui.project.ProjectViewModel
 import com.yourssu.ragent.ui.projectlist.CreateProjectDialog
 import com.yourssu.ragent.ui.projectlist.ProjectListScreen
 
@@ -44,12 +47,11 @@ private data class ScrollPosition(val index: Int = 0, val offset: Int = 0)
 
 @Composable
 fun RAGentApp() {
-    val projects = remember {
-        mutableStateListOf(
-            Project(id = "project-ragent", name = "RAGent", myRole = Role.Admin, githubUrl = "https://github.com/yourssu/ragent", docsUrl = "RAGent Docs"),
-            Project(id = "project-focuswave", name = "FocusWave", myRole = Role.Member, githubUrl = "https://github.com/yourssu/focuswave", docsUrl = "FocusWave Docs"),
-            Project(id = "project-soongsil-life", name = "Soongsil Life", myRole = Role.Viewer, docsUrl = "Soongsil Life Docs")
-        )
+    val projectViewModel: ProjectViewModel = viewModel()
+    val projects = projectViewModel.projects
+
+    LaunchedEffect(Unit) {
+        projectViewModel.loadProjects()
     }
     val people = remember {
         listOf(
@@ -106,13 +108,6 @@ fun RAGentApp() {
             ?: Person(id = personId, name = personId, projects = joinedProjects)
     }
 
-    fun deleteProject(project: Project) {
-        projects.removeAll { it.id == project.id }
-        messages.removeAll { it.projectId == project.id }
-        selectedTab = ProjectTab.Docs
-        screen = AppScreen.ProjectList
-    }
-
     fun backFromChat(chat: AppScreen.Chat) {
         screen = when {
             chat.returnToList -> AppScreen.Chat(
@@ -164,7 +159,15 @@ fun RAGentApp() {
                     profileSummary = member.summary
                 )
             },
-            onDeleteProject = { deleteProject(current.project) },
+            onDeleteProject = {
+                projectViewModel.deleteProject(current.project) { deleted ->
+                    if (deleted) {
+                        messages.removeAll { it.projectId == current.project.id }
+                        selectedTab = ProjectTab.Docs
+                        screen = AppScreen.ProjectList
+                    }
+                }
+            },
             onLeaveProject = {}
         )
         is AppScreen.PersonDetail -> PersonDetailScreen(
@@ -236,11 +239,14 @@ fun RAGentApp() {
     if (showCreateDialog) {
         CreateProjectDialog(
             onDismiss = { showCreateDialog = false },
-            onCreate = {
-                projects.add(0, it)
-                selectedTab = ProjectTab.Docs
-                screen = AppScreen.ProjectHome(it)
-                showCreateDialog = false
+            onCreate = { project, onResult ->
+                projectViewModel.createProject(project) { created ->
+                    if (created) {
+                        selectedTab = ProjectTab.Docs
+                        screen = AppScreen.ProjectHome(project)
+                    }
+                    onResult(created)
+                }
             }
         )
     }

@@ -7,7 +7,7 @@ data class UserProfile(
     val email: String = "",
     val displayName: String = "",
     val photoUrl: String = "",
-    val authProviders: List<String> = emptyList(),
+    val authProvider: String = "",
     val isEmailVerified: Boolean = false,
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null,
