@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "216253573721",
+    "project_id": "ragent-d6b01",
+    "storage_bucket": "ragent-d6b01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:216253573721:android:82a59b29401879ee9e5f48",
+        "android_client_info": {
+          "package_name": "com.yourssu.ragent"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "216253573721-jdqupejkqsb9t9b2se13tdipmsutms1m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yourssu.ragent",
+            "certificate_hash": "4f88612b15cdd5245de87c4354b7dc42d3afbc4e"
+          }
+        },
+        {
+          "client_id": "216253573721-u1gvls970n77e1ls3scv3vhknjf8agjj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyxN0DcAcv6zObc3XwyP3_KUfZRm9DtvU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "216253573721-u1gvls970n77e1ls3scv3vhknjf8agjj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
