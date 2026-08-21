@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectTab
+import com.yourssu.ragent.model.ProjectVisibility
+import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.components.AppIcon
 import com.yourssu.ragent.ui.components.RAGentIcon
 import com.yourssu.ragent.ui.layout.ScreenPadding
@@ -55,6 +57,10 @@ fun ProjectHomeScreen(
     onProjectChatClick: () -> Unit,
     onMemberChatClick: (ProjectMember) -> Unit,
     onMemberClick: (ProjectMember) -> Unit,
+    onMemberRoleChange: (ProjectMember, Role) -> Unit,
+    onMemberDelete: (ProjectMember) -> Unit,
+    onCreateInvite: (Role, Boolean) -> Unit,
+    onProjectVisibilityChange: (ProjectVisibility, (Boolean) -> Unit) -> Unit,
     onDeleteProject: () -> Unit,
     onLeaveProject: () -> Unit
 ) {
@@ -83,11 +89,14 @@ fun ProjectHomeScreen(
                 ProjectTab.Members -> MembersTab(
                     members = project.members,
                     personName = personName,
+                    canManageMembers = project.myRole == Role.Admin,
                     scrollIndex = membersScrollIndex,
                     scrollOffset = membersScrollOffset,
                     onScrollPositionChange = onMembersScrollPositionChange,
                     onMemberChatClick = onMemberChatClick,
-                    onMemberClick = onMemberClick
+                    onMemberClick = onMemberClick,
+                    onRoleChange = onMemberRoleChange,
+                    onMemberDelete = onMemberDelete
                 )
                 ProjectTab.Agent -> AgentTab()
             }
@@ -106,6 +115,8 @@ fun ProjectHomeScreen(
                     showDetails = false
                     onMemberClick(it)
                 },
+                onCreateInvite = onCreateInvite,
+                onProjectVisibilityChange = onProjectVisibilityChange,
                 onDeleteProject = {
                     showDetails = false
                     onDeleteProject()

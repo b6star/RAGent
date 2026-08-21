@@ -28,6 +28,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/projects/$(projectId)/members/$(request.auth.uid)).data.role == 'Admin';
     }
 
+    function invite(projectId, inviteId) {
+      return get(/databases/$(database)/documents/projects/$(projectId)/invites/$(inviteId));
+    }
+
+    function hasValidInvite(projectId, inviteId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId)/invites/$(inviteId))
+        && invite(projectId, inviteId).data.projectId == projectId
+        && invite(projectId, inviteId).data.role in ['Member', 'Viewer'];
+    }
+
     match /users/{userId} {
       allow read, write: if isUser(userId);
     }
@@ -56,14 +66,54 @@ service cloud.firestore {
         || isOwner(projectId)
       );
 
-      allow create: if request.resource.data.userId == userId
-        && (isAdmin(projectId) || (
+      allow create: if signedIn()
+        && request.resource.data.userId == userId
+        && request.resource.data.role in ['Admin', 'Member', 'Viewer']
+        && ((isAdmin(projectId)
+          && request.resource.data.role in ['Member', 'Viewer']) || (
           isOwner(projectId)
           && userId == request.auth.uid
           && request.resource.data.role == 'Admin'
+        ) || (
+          userId == request.auth.uid
+          && hasValidInvite(projectId, request.resource.data.inviteId)
+          && request.resource.data.role == invite(projectId, request.resource.data.inviteId).data.role
         ));
 
-      allow update, delete: if isAdmin(projectId);
+      allow update: if isAdmin(projectId)
+        && request.resource.data.userId == resource.data.userId
+        && resource.data.role in ['Member', 'Viewer']
+        && request.resource.data.role in ['Member', 'Viewer'];
+
+      allow delete: if (isAdmin(projectId)
+        && resource.data.role in ['Member', 'Viewer'])
+        || (isOwner(projectId)
+          && resource.data.role == 'Admin'
+          && !existsAfter(/databases/$(database)/documents/projects/$(projectId)))
+        || (signedIn()
+          && userId == request.auth.uid
+          && resource.data.role in ['Member', 'Viewer']
+          && project(projectId).data.ownerId != request.auth.uid);
+    }
+
+    match /{path=**}/members/{userId} {
+      allow read: if signedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    match /projects/{projectId}/invites/{inviteId} {
+      allow get: if signedIn();
+      allow list: if isOwner(projectId) || isAdmin(projectId);
+      allow create, delete: if isAdmin(projectId);
+    }
+
+    match /projects/{projectId}/comments/{commentId} {
+      allow read: if isMember(projectId);
+      allow create: if isMember(projectId)
+        && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if (isMember(projectId)
+        && resource.data.authorId == request.auth.uid)
+        || isAdmin(projectId);
     }
 
     // Any collection not explicitly listed above is denied by default.

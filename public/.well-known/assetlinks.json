@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yourssu.ragent",
+      "sha256_cert_fingerprints": [
+        "F2:FD:76:41:92:F9:43:6C:C0:E7:A7:51:11:E3:69:5A:49:77:0D:15:EE:2E:6E:33:61:C4:9B:8A:6A:09:41:D8"
+      ]
+    }
+  }
+]

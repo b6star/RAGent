@@ -1,6 +1,7 @@
 package com.yourssu.ragent
 
 import android.os.Bundle
+import android.content.Intent
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,8 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.firestore
 import com.yourssu.ragent.model.UserProfile
+import com.yourssu.ragent.model.ProjectInviteLink
+import com.yourssu.ragent.model.InviteLinkHost
 import com.yourssu.ragent.ui.RAGentApp
 import com.yourssu.ragent.ui.auth.LoginScreen
 import com.yourssu.ragent.ui.theme.RAGentTheme
@@ -31,8 +34,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
+    private val pendingInvite = mutableStateOf<ProjectInviteLink?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingInvite.value = intent.toProjectInviteLink()
         enableEdgeToEdge()
         setContent {
             val auth = Firebase.auth
@@ -76,10 +82,19 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    RAGentApp()
+                    RAGentApp(
+                        inviteLink = pendingInvite.value,
+                        onInviteHandled = { pendingInvite.value = null }
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingInvite.value = intent.toProjectInviteLink()
     }
 
     private suspend fun signInAnonymously(): FirebaseUser? {
@@ -195,4 +210,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+}
+
+private fun Intent?.toProjectInviteLink(): ProjectInviteLink? {
+    val data = this?.data ?: return null
+    if (data.scheme != "https" || data.host != InviteLinkHost || data.path != "/invite") {
+        return null
+    }
+    val projectId = data.getQueryParameter("projectId") ?: return null
+    val inviteId = data.getQueryParameter("inviteId") ?: return null
+    return ProjectInviteLink(projectId, inviteId)
 }

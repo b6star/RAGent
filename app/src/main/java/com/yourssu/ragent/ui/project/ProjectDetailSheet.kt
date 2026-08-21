@@ -6,15 +6,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -53,14 +60,18 @@ fun ProjectDetailsSheet(
     project: Project,
     personName: (String) -> String,
     onMemberClick: (ProjectMember) -> Unit,
+    onCreateInvite: (Role, Boolean) -> Unit,
+    onProjectVisibilityChange: (ProjectVisibility, (Boolean) -> Unit) -> Unit,
     onDeleteProject: () -> Unit,
     onLeaveProject: () -> Unit
 ) {
-    var projectVisibility by remember(project.name) { mutableStateOf(project.visibility) }
-    var myVisibility by remember(project.name) { mutableStateOf(project.visibility) }
+    var projectVisibility by remember(project.id, project.visibility) { mutableStateOf(project.visibility) }
+    var myVisibility by remember(project.id) { mutableStateOf(project.visibility) }
+    var isVisibilitySaving by remember { mutableStateOf(false) }
     var showPr by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
+    var regenerateRole by remember { mutableStateOf<Role?>(null) }
     val canRead = projectVisibility == ProjectVisibility.Public || project.myRole != Role.Viewer
 
     Column(
@@ -69,7 +80,12 @@ fun ProjectDetailsSheet(
             .padding(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("프로젝트 정보", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(
+            "프로젝트 정보",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black
+        )
+
         InfoRow("프로젝트 이름", project.name)
         Column {
             Text("GitHub", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
@@ -83,26 +99,42 @@ fun ProjectDetailsSheet(
         MemberMarkers(project, personName, onMemberClick)
         VisibilityRow(
             label = "프로젝트 공개",
-            enabled = project.myRole == Role.Admin,
+            enabled = project.myRole == Role.Admin && !isVisibilitySaving,
             checked = projectVisibility == ProjectVisibility.Public,
             onCheckedChange = {
-                projectVisibility = if (it) ProjectVisibility.Public else ProjectVisibility.Private
-                if (projectVisibility == ProjectVisibility.Private) myVisibility = ProjectVisibility.Private
+                val previousVisibility = projectVisibility
+                val previousMyVisibility = myVisibility
+                val newVisibility = if (it) ProjectVisibility.Public else ProjectVisibility.Private
+                projectVisibility = newVisibility
+                isVisibilitySaving = true
+                if (newVisibility == ProjectVisibility.Private) myVisibility = ProjectVisibility.Private
+                onProjectVisibilityChange(newVisibility) { updated ->
+                    if (!updated) {
+                        projectVisibility = previousVisibility
+                        myVisibility = previousMyVisibility
+                    }
+                    isVisibilitySaving = false
+                }
             }
         )
         VisibilityRow(
             label = "내 열람 설정",
-            enabled = projectVisibility == ProjectVisibility.Public,
+            enabled = projectVisibility == ProjectVisibility.Public && !isVisibilitySaving,
             checked = myVisibility == ProjectVisibility.Public,
             onCheckedChange = { myVisibility = if (it) ProjectVisibility.Public else ProjectVisibility.Private }
         )
         InfoRow("읽기 권한", if (canRead) "관리자/팀원/열람자 가능" else "관리자/팀원만 가능")
         InfoRow("동기화", "Mock 상태")
+        if (project.myRole == Role.Admin) {
+            InviteLinkSection(
+                onShare = { onCreateInvite(it, false) },
+                onRegenerate = { regenerateRole = it }
+            )
+        }
         LatestPrCard(project.latestPullRequest, personName, onClick = { showPr = true })
         when (project.myRole) {
             Role.Admin -> DangerActionCard("프로젝트 삭제하기", onClick = { showDeleteConfirm = true })
-            Role.Member -> DangerActionCard("프로젝트 나가기", onClick = { showLeaveConfirm = true })
-            Role.Viewer -> Unit
+            Role.Member, Role.Viewer -> DangerActionCard("프로젝트 나가기", onClick = { showLeaveConfirm = true })
         }
     }
 
@@ -118,7 +150,7 @@ fun ProjectDetailsSheet(
     if (showDeleteConfirm) {
         ProjectActionDialog(
             title = "정말 ${project.name}을 삭제하시겠습니까?",
-            text = "프로젝트를 삭제하면 관련된 데이터(대화내용, 멤버연동 정보)가 삭제됩니다. 삭제된 프로젝트는 서버의 휴지통으로 이동하며 30일 후에 완전히 삭제됩니다.",
+            text = "프로젝트와 멤버, 초대 링크, 댓글 데이터가 영구적으로 삭제됩니다.",
             confirmText = "삭제",
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
@@ -137,6 +169,30 @@ fun ProjectDetailsSheet(
             onConfirm = {
                 showLeaveConfirm = false
                 onLeaveProject()
+            }
+        )
+    }
+
+    regenerateRole?.let { role ->
+        val roleLabel = if (role == Role.Member) "팀원" else "열람자"
+        AlertDialog(
+            onDismissRequest = { regenerateRole = null },
+            title = { Text("$roleLabel 링크를 재발급할까요?") },
+            text = { Text("기존 $roleLabel 초대 링크는 즉시 만료됩니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        regenerateRole = null
+                        onCreateInvite(role, true)
+                    }
+                ) {
+                    Text("재발급")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { regenerateRole = null }) {
+                    Text("취소")
+                }
             }
         )
     }
@@ -177,15 +233,68 @@ private fun MemberMarkers(project: Project, personName: (String) -> String, onMe
             modifier = Modifier.fillMaxWidth()
         )  {
             items(
-                items = project.members.filter { it.role != Role.Viewer },
+                items = project.members,
                 key = { it.id }
             ) { member ->
                 MemberNameMarker(
-                    personName(member.personId),
+                    member.name.ifBlank { personName(member.personId) },
                     member.role,
                     onClick = { onMemberClick(member) }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun InviteLinkSection(
+    onShare: (Role) -> Unit,
+    onRegenerate: (Role) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "초대 링크",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Column {
+                InviteLinkRow("팀원", Role.Member, onShare, onRegenerate)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                InviteLinkRow("열람자", Role.Viewer, onShare, onRegenerate)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InviteLinkRow(
+    label: String,
+    role: Role,
+    onShare: (Role) -> Unit,
+    onRegenerate: (Role) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("$label 링크", fontWeight = FontWeight.SemiBold)
+            RoleMarker(role, true)
+        }
+        TextButton(onClick = { onRegenerate(role) }) {
+            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text("재발급")
+        }
+        IconButton(onClick = { onShare(role) }) {
+            Icon(Icons.Default.Share, contentDescription = "$label 초대 링크 공유")
         }
     }
 }
@@ -196,7 +305,7 @@ private fun LatestPrCard(pr: PullRequest, personName: (String) -> String, onClic
     AccentCard(accent = accent, onClick = onClick) {
         Text("Latest PR", color = accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(pr.branchName, color = accent, fontWeight = FontWeight.Black)
-            Text("#${pr.number} by ${personName(pr.author.personId)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+        Text("#${pr.number} by ${personName(pr.author.personId)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
     }
 }
 
