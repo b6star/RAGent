@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.util.UUID
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.Role
@@ -34,12 +35,13 @@ import com.yourssu.ragent.model.Role
 @Composable
 fun CreateProjectDialog(
     onDismiss: () -> Unit,
-    onCreate: (Project) -> Unit
+    onCreate: (Project, (Boolean) -> Unit) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var githubUrl by remember { mutableStateOf("") }
     var docsUrl by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf(ProjectVisibility.Public) }
+    var isSaving by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -66,19 +68,24 @@ fun CreateProjectDialog(
                 VisibilityChip("Private", visibility == ProjectVisibility.Private) { visibility = ProjectVisibility.Private }
             }
             Button(
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && !isSaving,
                 onClick = {
                     val projectName = name.trim()
+                    isSaving = true
                     onCreate(
                         Project(
-                            id = "project-${projectName.lowercase().replace(" ", "-")}",
+                            id = UUID.randomUUID().toString(),
                             name = projectName,
                             myRole = Role.Admin,
                             githubUrl = githubUrl.trim(),
                             docsUrl = docsUrl.trim(),
-                            visibility = visibility
+                            visibility = visibility,
+                            members = emptyList()
                         )
-                    )
+                    ) { created ->
+                        isSaving = false
+                        if (created) onDismiss()
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()

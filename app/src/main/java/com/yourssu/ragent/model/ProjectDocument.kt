@@ -1,0 +1,31 @@
+package com.yourssu.ragent.model
+
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
+
+data class ProjectDocument(
+    val projectId: String = "",
+    val name: String = "",
+    val ownerId: String = "",
+    val githubUrl: String = "",
+    val docsUrl: String = "",
+    val visibility: String = ProjectVisibility.Public.name,
+    val status: String = ProjectStatus.IN_PROGRESS.name,
+    @get:ServerTimestamp val createdAt: Timestamp? = null,
+    @get:ServerTimestamp val updatedAt: Timestamp? = null
+)
+
+fun ProjectDocument.toProject(id: String, role: Role): Project {
+    return Project(
+        id = projectId.ifBlank { id },
+        name = name,
+        myRole = role,
+        githubUrl = githubUrl,
+        docsUrl = docsUrl,
+        visibility = ProjectVisibility.entries.firstOrNull { it.name == visibility }
+            ?: ProjectVisibility.Public,
+        members = emptyList(),
+        status = ProjectStatus.entries.firstOrNull { it.name == status }
+            ?: ProjectStatus.IN_PROGRESS
+    )
+}
