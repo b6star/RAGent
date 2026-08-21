@@ -1,5 +1,10 @@
 package com.yourssu.ragent.ui.projectlist
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -28,12 +33,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.ui.components.AppIcon
@@ -43,6 +54,7 @@ import com.yourssu.ragent.ui.theme.ConnectedColorDark
 import com.yourssu.ragent.ui.theme.ConnectedColorLight
 import com.yourssu.ragent.ui.theme.DisconnectedColorDark
 import com.yourssu.ragent.ui.theme.DisconnectedColorLight
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +67,18 @@ fun ProjectListScreen(
     onChatClick: () -> Unit,
     onCreateClick: () -> Unit
 ) {
+    var showRefreshComplete by remember { mutableStateOf(false) }
+    var wasLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLoading) {
+        if (wasLoading && !isLoading && errorMessage == null) {
+            showRefreshComplete = true
+            delay(1000)
+            showRefreshComplete = false
+        }
+        wasLoading = isLoading
+    }
+
     Scaffold { padding ->
         PullToRefreshBox(
             isRefreshing = isLoading,
@@ -67,7 +91,7 @@ fun ProjectListScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     ProjectListHeader(
@@ -86,6 +110,40 @@ fun ProjectListScreen(
                 }
                 items(projects) { project ->
                     ProjectCard(project = project, onClick = { onProjectClick(project) })
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showRefreshComplete,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 24.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f),
+                    shape = CircleShape,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RAGentIcon(
+                            AppIcon.Check,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "새로고침을 완료했습니다.",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
             }
         }
@@ -166,46 +224,58 @@ private fun ProjectCard(project: Project, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RoleMarker(project.myRole, shortLabel = true)
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Text(
                 text = project.name,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            ConnectionIcon(project.githubUrl.isNotBlank(), description = "GitHub 연결", AppIcon.Github)
-            ConnectionIcon(project.docsUrl.isNotBlank(), description = "Docs 연결", AppIcon.Docs)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ConnectionIndicator(project.githubUrl.isNotBlank(), AppIcon.Github)
+                Spacer(Modifier.width(4.dp))
+                ConnectionIndicator(project.docsUrl.isNotBlank(), AppIcon.Docs)
+            }
         }
     }
 }
 
 @Composable
-private fun ConnectionIcon(connected: Boolean, description: String, icon: AppIcon) {
+private fun ConnectionIndicator(connected: Boolean, icon: AppIcon) {
     val isDark = isSystemInDarkTheme()
-    IconButton(
-        onClick = {},
+    val tint = if (connected) {
+        if (isDark) ConnectedColorDark else ConnectedColorLight
+    } else {
+        if (isDark) DisconnectedColorDark else DisconnectedColorLight
+    }
+    
+    Box(
         modifier = Modifier
-            .size(42.dp)
-            .semantics { contentDescription = description }
+            .size(32.dp)
+            .background(
+                color = tint.copy(alpha = 0.1f),
+                shape = CircleShape
+            ),
+        contentAlignment = Alignment.Center
     ) {
         RAGentIcon(
-            icon,
-            if (connected) {
-                if (isDark) ConnectedColorDark else ConnectedColorLight
-            } else {
-                if (isDark) DisconnectedColorDark else DisconnectedColorLight
-            }
+            icon = icon,
+            color = tint,
+            modifier = Modifier.size(16.dp)
         )
     }
 }

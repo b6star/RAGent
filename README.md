@@ -1,73 +1,62 @@
 # RAGent
 
+RAGent는 GitHub Repository와 Notion 문서를 프로젝트 지식으로 연결하고, Gemini 기반 AI Agent를 통해 코드와 문서를 탐색하고 질문할 수 있도록 만드는 Android 애플리케이션입니다.
 
-RAGent는 GitHub Repository와 Notion 문서를 하나의 프로젝트 지식으로 연결하고,
-RAG 기반 AI Agent를 통해 프로젝트의 코드와 문서를 탐색하고 질문할 수 있도록 하는 Android 애플리케이션입니다.
+## 현재 구현
 
-## RAG
+- Firebase Authentication 기반 Google 로그인
+- Firestore 사용자 및 프로젝트 저장
+- 프로젝트 생성, 조회, 수정, 삭제
+- Admin, Member, Viewer 역할 관리
+- Member 및 Viewer 초대 링크 발급과 재발급
+- Android App Links 기반 프로젝트 참여
+- 소유 프로젝트와 참여 프로젝트 통합 조회
+- Firestore Security Rules 및 Collection Group 인덱스
+- 프로젝트 목록 Pull-to-Refresh
 
-RAG(Retrieval-Augmented Generation)는 LLM이 답변을 생성하기 전에
-외부 데이터에서 질문과 관련된 정보를 검색하여 답변에 활용하는 방식입니다.
+Phase 2 구현은 완료되었으며 PR #4 병합을 앞두고 있습니다. 다음 Phase에서는 Gemini AI 기본 연동을 시작합니다.
 
-RAGent에서는 GitHub 코드와 Notion 문서를 프로젝트 지식으로 사용합니다.
-프로젝트 전체 내용을 LLM에 전달하는 대신, 사용자의 질문과 관련된 코드와 문서만 검색하여 LLM에 제공합니다.
+## 다음 Phase
 
+Phase 3의 목표는 RAG를 한 번에 완성하는 것이 아니라, 인증된 사용자의 질문을 Firebase 서버가 받아 Gemini 답변을 반환하는 최소 흐름을 먼저 만드는 것입니다.
 
-## 주요 기능
+```mermaid
+flowchart LR
+    A["Android Agent UI"] --> B["Firebase Cloud Functions"]
+    B --> C["Gemini"]
+    C --> B
+    B --> A
+```
 
+Phase 3 이후 공개 GitHub 및 Notion 링크 수집, Chunking, Embedding, Firestore Vector Search를 순서대로 연결합니다.
 
-- 여러 프로젝트 관리
-- GitHub Repository 연동 및 코드 탐색
-- Notion 프로젝트 문서 연동
-- 프로젝트 멤버 및 권한 관리
-- RAG 기반 프로젝트 정보 검색
-- Local LLM 기반 AI Agent
-- Pull Request 확인 및 진행 중인 작업 확인
+## 목표 구조
 
+```mermaid
+flowchart LR
+    A["GitHub / Notion"] --> B["Cloud Functions"]
+    B --> C["Chunking"]
+    C --> D["Gemini Embedding"]
+    D --> E["Firestore Vector Search"]
+    F["사용자 질문"] --> E
+    E --> G["관련 Context"]
+    G --> H["Gemini"]
+    H --> I["답변과 출처"]
+```
 
-## RAGent의 RAG 구조
+GitHub와 Notion은 공개 링크 연결을 기본으로 사용합니다. GitHub API, Notion API와 Webhook은 필요한 경우 선택 기능으로 추가합니다.
 
+## 기술 스택
 
-GitHub와 Notion의 프로젝트 데이터를 Chunking 및 Embedding하여 검색 가능한 형태로 관리합니다.
+- Kotlin
+- Jetpack Compose
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Hosting
+- Firebase Cloud Functions
+- Gemini
 
+## 문서
 
-사용자가 Agent에게 질문하면 전체 프로젝트를 LLM에 전달하지 않고,
-RAG를 통해 질문과 관련된 정보만 검색하여 LLM Context로 제공합니다.
-
-
-```text
-GitHub / Notion
-      ↓
-   Chunking
-      ↓
-  Embedding
-      ↓
- Vector 저장
-
-사용자 질문
-      ↓
-Vector Search
-      ↓
-관련 Chunk 검색
-      ↓
-  Local LLM
-      ↓
-    Answer
-
-초기 Local LLM은 Qwen3-4B GGUF 모델과 llama.cpp 기반 실행을 고려하고 있으며,
-향후 외부 LLM API도 선택적으로 지원할 예정입니다.
-
-Tech Stack
-Kotlin
-Jetpack Compose
-Firebase
-GitHub API / Webhook
-Notion
-RAG
-llama.cpp
-Qwen3-4B
-Development Status
-
-현재 Phase 1에서는 Android 애플리케이션의 기본 구조와 UI를 구현하고 있습니다.
-
-이후 Firebase → GitHub → Notion → RAG → Local LLM 순서로 기능을 확장할 예정입니다.
+- [프로젝트 구현 가이드](RAGENT_PROJECT_GUIDE.md)
+- [Phase 2 작업 기록](docs/steps/README.md)

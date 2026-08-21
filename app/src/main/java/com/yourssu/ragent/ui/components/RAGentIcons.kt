@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.Color
@@ -14,7 +15,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.R
 
-enum class AppIcon { Plus, Github, Docs, Repository, Members, Agent, ChatList, ChatEmpty, Back, More }
+enum class AppIcon { Plus, Github, Docs, Repository, Members, Agent, Check, ChatList, ChatEmpty, Back, More }
 private val iconSize = 20.dp
 
 @Composable
@@ -35,6 +36,7 @@ fun RAGentIcon(icon: AppIcon, color: Color, modifier: Modifier = Modifier) {
     )
     when (icon) {
         AppIcon.Plus -> VectorIcon(Icons.Default.AddCircle)
+        AppIcon.Check -> VectorIcon(Icons.Default.CheckCircle)
         AppIcon.Back -> VectorIcon(Icons.Default.ArrowBackIosNew)
         AppIcon.More -> VectorIcon(Icons.Default.MoreHoriz)
         AppIcon.Repository -> DrawableIcon(R.drawable.ic_repository)

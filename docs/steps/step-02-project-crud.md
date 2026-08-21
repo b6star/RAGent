@@ -1,36 +1,34 @@
 # Phase 2 / Step 02 - Project CRUD
 
-## Branch
+## Status
 
-```text
-feature/firebase-project-crud
-```
+- Branch: `feature/firebase-project-crud`
+- PR: #3
+- Result: Merged
 
 ## Goal
 
-Mock 프로젝트 데이터를 Firestore 데이터로 교체하고 프로젝트 생성 및 조회 흐름을 완성한다.
+Mock 프로젝트 목록을 Firestore 데이터로 교체하고 프로젝트 CRUD 흐름을 완성한다.
 
-## Scope
+## Completed
 
-- 프로젝트 생성
-- 프로젝트 목록 조회
-- 프로젝트 상세 조회
-- 프로젝트 삭제 또는 나가기
-- 기존 Mock 프로젝트 데이터 교체
-- 로그인한 사용자의 프로젝트 목록 조회
+- 프로젝트 생성, 조회와 삭제
+- 소유 프로젝트와 공유 프로젝트 조회
+- Reference 프로젝트 조회
+- `ProjectViewModel` 기반 Firestore 상태 관리
+- 앱 재실행과 재설치 후 프로젝트 유지
+- Firestore 조회 오류와 빈 상태 처리
 
-## Done
+## Query
 
-- 프로젝트를 생성하면 Firestore에 저장된다.
-- Project List가 Firestore 데이터를 표시한다.
-- 프로젝트를 선택하면 Firestore 상세 데이터가 표시된다.
-- 앱을 다시 실행해도 프로젝트 데이터가 유지된다.
-- 프로젝트 삭제 또는 나가기 동작이 실제 데이터에 반영된다.
-- 데이터가 없는 상태와 오류 상태를 처리한다.
+| 대상 | 조건 |
+| --- | --- |
+| 소유 프로젝트 | `ownerId == currentUser.uid` |
+| 참여 프로젝트 | `members.userId == currentUser.uid` |
+| Reference 프로젝트 | 지정된 Reference ID와 Public 공개 범위 |
 
-## Out of Scope
+## Excluded
 
-- 멤버 초대
-- Admin / Member / Viewer 권한의 세부 처리
-- 프로젝트 공유
-- GitHub / Notion 연결
+- 역할별 초대 링크
+- 멤버 권한 관리
+- Gemini 및 RAG
