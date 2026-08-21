@@ -11,6 +11,7 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectDocument
+import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.toProject
 import kotlinx.coroutines.launch
@@ -119,6 +120,25 @@ class ProjectViewModel : ViewModel() {
             emptyList()
         }
 
-        return (ownedProjects + sharedProjects).distinctBy(Project::id)
+        val referenceProjects = try {
+            firestore
+                .collection("projects")
+                .whereEqualTo("projectId", ReferenceProjectId)
+                .whereEqualTo("visibility", ProjectVisibility.Public.name)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { document ->
+                    document.toObject(ProjectDocument::class.java)
+                        ?.toProject(document.id, Role.Viewer)
+                }
+        } catch (e: Exception) {
+            Log.e("ReferenceProjectLoad", "Failed to load reference project", e)
+            emptyList()
+        }
+
+        return (ownedProjects + sharedProjects + referenceProjects).distinctBy(Project::id)
     }
 }
+
+private const val ReferenceProjectId = "project-reference"
