@@ -1,6 +1,11 @@
 package com.yourssu.ragent.ui.project
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,8 +28,10 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,12 +49,16 @@ import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.components.AppIcon
 import com.yourssu.ragent.ui.components.RAGentIcon
 import com.yourssu.ragent.ui.layout.ScreenPadding
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectHomeScreen(
     project: Project,
     selectedTab: ProjectTab,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRefresh: () -> Unit,
     onTabSelected: (ProjectTab) -> Unit,
     onBack: () -> Unit,
     personName: (String) -> String,
@@ -65,40 +76,108 @@ fun ProjectHomeScreen(
     onLeaveProject: () -> Unit
 ) {
     var showDetails by remember { mutableStateOf(false) }
+    var showRefreshComplete by remember { mutableStateOf(false) }
+    var wasLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLoading) {
+        if (wasLoading && !isLoading && errorMessage == null) {
+            showRefreshComplete = true
+            delay(1000)
+            showRefreshComplete = false
+        }
+        wasLoading = isLoading
+    }
+
     BackHandler(onBack = onBack)
 
     Scaffold(bottomBar = { ProjectBottomBar(selectedTab, onTabSelected) }) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(padding)
-                .padding(ScreenPadding),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            ProjectHeader(
-                projectName = project.name,
-                tabName = selectedTab.displayName,
-                onBack = onBack,
-                onDetailsClick = { showDetails = true },
-                onChatClick = onProjectChatClick
-            )
-            when (selectedTab) {
-                ProjectTab.Docs -> DocsTab()
-                ProjectTab.Repository -> RepositoryTab(project)
-                ProjectTab.Members -> MembersTab(
-                    members = project.members,
-                    personName = personName,
-                    canManageMembers = project.myRole == Role.Admin,
-                    scrollIndex = membersScrollIndex,
-                    scrollOffset = membersScrollOffset,
-                    onScrollPositionChange = onMembersScrollPositionChange,
-                    onMemberChatClick = onMemberChatClick,
-                    onMemberClick = onMemberClick,
-                    onRoleChange = onMemberRoleChange,
-                    onMemberDelete = onMemberDelete
+        val content: @Composable (Modifier) -> Unit = { modifier ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(ScreenPadding),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                ProjectHeader(
+                    projectName = project.name,
+                    tabName = selectedTab.displayName,
+                    onBack = onBack,
+                    onDetailsClick = { showDetails = true },
+                    onChatClick = onProjectChatClick
                 )
-                ProjectTab.Agent -> AgentTab()
+                when (selectedTab) {
+                    ProjectTab.Docs -> DocsTab()
+                    ProjectTab.Repository -> RepositoryTab(project)
+                    ProjectTab.Members -> MembersTab(
+                        members = project.members,
+                        personName = personName,
+                        canManageMembers = project.myRole == Role.Admin,
+                        scrollIndex = membersScrollIndex,
+                        scrollOffset = membersScrollOffset,
+                        onScrollPositionChange = onMembersScrollPositionChange,
+                        onMemberChatClick = onMemberChatClick,
+                        onMemberClick = onMemberClick,
+                        onRoleChange = onMemberRoleChange,
+                        onMemberDelete = onMemberDelete
+                    )
+                    ProjectTab.Agent -> AgentTab()
+                }
+            }
+        }
+
+        if (selectedTab == ProjectTab.Agent) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding)
+            ) {
+                content(Modifier)
+            }
+        } else {
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = onRefresh,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(padding)
+            ) {
+                content(Modifier)
+
+                AnimatedVisibility(
+                    visible = showRefreshComplete,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                    exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 24.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f),
+                        shape = CircleShape,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RAGentIcon(
+                                AppIcon.Check,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "새로고침을 완료했습니다.",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
             }
         }
     }

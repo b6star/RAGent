@@ -1,27 +1,30 @@
 package com.yourssu.ragent.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val GreenPrimary = Color(0xFF1B4332)
+val GreenSecondary = Color(0xFF40916C)
+val GreenTertiary = Color(0xFF74C69D)
+val GreenContainer = Color(0xFFD8F3DC)
+val GreenOnContainer = Color(0xFF081C15)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val GreenPrimaryDark = Color(0xFF95D5B2)
+val GreenSecondaryDark = Color(0xFF74C69D)
+val GreenTertiaryDark = Color(0xFF52B788)
+val GreenContainerDark = Color(0xFF1B4332)
+val GreenOnContainerDark = Color(0xFFD8F3DC)
 
-val PrAccentLight = Color(0xFF1A7F37)
-val PrAccentDark = Color(0xFF3FB950)
+val AdminThemeColor = Color(0xFFE94D8A)
+val MemberThemeColor = GreenSecondary
+val ViewerThemeColor = Color(0xFF6E7781)
+
+val PrAccentLight = GreenPrimary
+val PrAccentDark = GreenPrimaryDark
 val DangerAccentLight = Color(0xFFB42318)
 val DangerAccentDark = Color(0xFFFF6B6B)
 
-val AdminThemeColor = Color(0xFFE94D8A)
-val MemberThemeColor = Color(0xFF12A87E)
-val ViewerThemeColor = Color(0xFF68717D)
-
-val ConnectedColorLight = Color(0xFF005A14)
-val ConnectedColorDark = Color(0xFF006015)
+val ConnectedColorLight = Color(0xFF2D6A4F)
+val ConnectedColorDark = Color(0xFF74C69D)
 val DisconnectedColorLight = Color(0xFFD0D7DE)
 val DisconnectedColorDark = Color(0xFF30363D)
 val LinkMarkerColorLight = Color.DarkGray

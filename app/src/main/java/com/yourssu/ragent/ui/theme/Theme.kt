@@ -13,31 +13,41 @@ import androidx.compose.ui.platform.LocalContext
 import com.yourssu.ragent.model.Role
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFFFFFF),
-    onPrimary = Color(0xFF0D1117),
-    secondary = Color(0xFF8B949E),
-    tertiary = Color(0xFF3DD6C6),
+    primary = GreenPrimaryDark,
+    onPrimary = Color(0xFF081C15),
+    primaryContainer = GreenContainerDark,
+    onPrimaryContainer = GreenOnContainerDark,
+    secondary = GreenSecondaryDark,
+    onSecondary = Color(0xFF081C15),
+    secondaryContainer = Color(0xFF2D6A4F),
+    onSecondaryContainer = Color(0xFFD8F3DC),
+    tertiary = GreenTertiaryDark,
     background = Color(0xFF080B10),
     onBackground = Color(0xFFF0F6FC),
-    surface = Color(0xFF171D26),
+    surface = Color(0xFF141E1A),
     onSurface = Color(0xFFF0F6FC),
-    surfaceVariant = Color(0xFF242C36),
+    surfaceVariant = Color(0xFF1B2A24),
     onSurfaceVariant = Color(0xFF8B949E),
-    outline = Color(0xFF30363D)
+    outline = Color(0xFF2D6A4F)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF111111),
+    primary = GreenPrimary,
     onPrimary = Color.White,
-    secondary = Color(0xFF6E7781),
-    tertiary = Color(0xFF008C8C),
+    primaryContainer = GreenContainer,
+    onPrimaryContainer = GreenOnContainer,
+    secondary = GreenSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFB7E4C7),
+    onSecondaryContainer = Color(0xFF081C15),
+    tertiary = GreenTertiary,
     background = Color(0xFFF2F5F8),
     onBackground = Color(0xFF111111),
     surface = Color.White,
     onSurface = Color(0xFF24292F),
-    surfaceVariant = Color(0xFFE8EDF3),
+    surfaceVariant = Color(0xFFE9F5EE),
     onSurfaceVariant = Color(0xFF57606A),
-    outline = Color(0xFFD0D7DE)
+    outline = Color(0xFFB7E4C7)
 )
 
 @Composable

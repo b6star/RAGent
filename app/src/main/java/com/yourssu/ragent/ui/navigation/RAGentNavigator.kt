@@ -82,6 +82,9 @@ fun RAGentNavigator(
             ProjectHomeScreen(
                 project = project,
                 selectedTab = selectedTab,
+                isLoading = projectViewModel.isLoading,
+                errorMessage = projectViewModel.loadError,
+                onRefresh = projectViewModel::loadProjects,
                 onTabSelected = { selectedTab = it },
                 onBack = {
                     selectedTab = ProjectTab.Docs
