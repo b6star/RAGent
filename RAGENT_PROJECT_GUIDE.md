@@ -37,8 +37,6 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - Firestore Security Rules와 Collection Group 인덱스
 - 프로젝트 목록 Pull-to-Refresh
 
-Phase 2 코드는 PR #4에 있으며 `main` 병합 전이다.
-
 ## 3. 현재 Firebase 구조
 
 | 경로 | 용도 |

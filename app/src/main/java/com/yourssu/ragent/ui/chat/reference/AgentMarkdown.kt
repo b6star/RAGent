@@ -1,0 +1,399 @@
+package com.yourssu.ragent.ui.chat.reference
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.yourssu.ragent.ui.chat.reference.theme.AgentColors
+import com.yourssu.ragent.ui.chat.reference.theme.AgentTheme
+
+@Composable
+fun AiChatMarkdownView(
+    markdown: String,
+    modifier: Modifier = Modifier,
+    isUser: Boolean = false,
+    isStreaming: Boolean = false,
+    onImageClick: (String) -> Unit = {},
+    onAskAi: (String) -> Unit = {},
+    onSlashCommand: (String) -> Unit = {},
+    onShowDetailsAtIndex: (Int) -> Unit = {}
+) {
+    val colors = AgentTheme.colors
+    val context = LocalContext.current
+    val textColor = if (isUser) colors.userText else colors.assistantText
+
+    SelectionContainer {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val blocks = remember(markdown) { parseMarkdownBlocks(markdown) }
+            blocks.forEach { block ->
+                when (block) {
+                    is MarkdownBlock.Text -> {
+                        val aiPrefix = stringResource(com.yourssu.ragent.R.string.ai_answer_prefix)
+                        val showDetails = stringResource(com.yourssu.ragent.R.string.show_details_link)
+                        val text = remember(block.value, colors, aiPrefix, showDetails) {
+                            markdownText(
+                                value = block.value,
+                                colors = colors,
+                                aiPrefix = aiPrefix,
+                                showDetails = showDetails
+                            )
+                        }
+                        ClickableText(
+                            text = text,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = textColor),
+                            onClick = { offset ->
+                                text.getStringAnnotations("URL", offset, offset)
+                                    .firstOrNull()?.item?.let { url ->
+                                        if (isImageUrl(url, context)) onImageClick(url)
+                                        else openInBrowser(context, url)
+                                        return@ClickableText
+                                    }
+
+                                text.getStringAnnotations("ACTION", offset, offset)
+                                    .firstOrNull()?.let {
+                                        if (it.item.startsWith("SLASH_COMMAND:")) {
+                                            onSlashCommand(it.item.removePrefix("SLASH_COMMAND:"))
+                                        } else if (it.item.startsWith("SHOW_DETAILS:")) {
+                                            val index = it.item.substringAfter("SHOW_DETAILS:").toIntOrNull() ?: 0
+                                            onShowDetailsAtIndex(index)
+                                        }
+                                    }
+                            }
+                        )
+                    }
+                    is MarkdownBlock.Code -> {
+                        val isMermaid = block.language == "mermaid"
+                        CodeWebView(
+                            code = block.value,
+                            declaredLanguage = block.language,
+                            mermaid = isMermaid && !isStreaming,
+                            renderKey = if (isStreaming) 0 else markdown.hashCode(),
+                            onAskAi = onAskAi
+                        )
+                    }
+                    MarkdownBlock.Spacer -> Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+}
+
+sealed interface MarkdownBlock {
+    data class Text(val value: String) : MarkdownBlock
+    data class Code(val value: String, val language: String) : MarkdownBlock
+    data object Spacer : MarkdownBlock
+}
+
+private const val THINKING_STEP_PREFIX = "THINKING_STEP"
+private val THINKING_STEP_SYMBOLS = setOf("🔍", "📊", "⚙️", "📝", "🔄", "✅", "📅", "🏷️")
+
+fun parseMarkdownBlocks(markdown: String): List<MarkdownBlock> {
+    val result = mutableListOf<MarkdownBlock>()
+    val textBuffer = StringBuilder()
+    var codeBuffer: StringBuilder? = null
+    var language = ""
+
+    fun flushText() {
+        val raw = textBuffer.toString()
+        if (raw.isBlank()) {
+            if (raw.count { it == '\n' } >= 2) {
+                if (result.lastOrNull() !is MarkdownBlock.Spacer) {
+                    result += MarkdownBlock.Spacer
+                }
+            }
+        } else {
+            if (raw.startsWith("\n\n") && result.lastOrNull() !is MarkdownBlock.Spacer) {
+                result += MarkdownBlock.Spacer
+            }
+            result += MarkdownBlock.Text(raw.trim())
+            if (raw.endsWith("\n\n")) {
+                result += MarkdownBlock.Spacer
+            }
+        }
+        textBuffer.clear()
+    }
+
+    markdown.lines().forEach { line ->
+        if (line.trimStart().startsWith("```")) {
+            if (codeBuffer == null) {
+                flushText()
+                codeBuffer = StringBuilder()
+                language = line.trim().removePrefix("```").trim().lowercase()
+            } else {
+                result += MarkdownBlock.Code(codeBuffer.toString().trimEnd(), language)
+                codeBuffer = null
+                language = ""
+            }
+        } else {
+            if (codeBuffer != null) {
+                codeBuffer.appendLine(line)
+            } else {
+                textBuffer.appendLine(line)
+            }
+        }
+    }
+
+    if (codeBuffer != null) {
+        result += MarkdownBlock.Code(codeBuffer.toString().trimEnd(), language)
+    } else {
+        flushText()
+    }
+
+    while (result.firstOrNull() is MarkdownBlock.Spacer) result.removeAt(0)
+    while (result.lastOrNull() is MarkdownBlock.Spacer) result.removeAt(result.lastIndex)
+
+    return result
+}
+
+fun markdownText(
+    value: String,
+    colors: AgentColors,
+    aiPrefix: String,
+    showDetails: String
+): AnnotatedString = buildAnnotatedString {
+    var detailIndex = 0
+    val lines = value.lines()
+
+    lines.forEachIndexed { index, line ->
+        val clean = line.trimStart()
+        val headingIndent = line.takeWhile { it == '\t' || it == ' ' }
+        val visualLine = line.replace(Regex("^\\t+")) { "    ".repeat(it.value.length) }
+        val heading = clean.takeWhile { it == '#' }.length
+        val content = clean.removePrefix("#".repeat(heading)).trim()
+
+        val thinkingStepSymbol = THINKING_STEP_SYMBOLS.firstOrNull { symbol ->
+            clean.startsWith(THINKING_STEP_PREFIX + symbol)
+        }
+        val isThinkingStep = thinkingStepSymbol != null
+
+        when {
+            isThinkingStep -> {
+                withStyle(SpanStyle(
+                    color = colors.metadataText.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontStyle = FontStyle.Italic
+                )) {
+                    // Keep the marker private to the renderer; show only the thinking-step symbol.
+                    appendInlineMarkdown(
+                        value = visualLine.replaceFirst(THINKING_STEP_PREFIX, ""),
+                        colors = colors
+                    )
+                    if (index < lines.lastIndex) append("\n")
+                }
+            }
+            clean.startsWith(aiPrefix) -> {
+                withStyle(SpanStyle(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp,
+                    color = colors.primary
+                )) {
+                    appendInlineMarkdown(value = visualLine, colors = colors)
+                    if (index < lines.lastIndex) append("\n")
+                }
+            }
+            clean.contains(showDetails) -> {
+                val linkText = " $showDetails"
+                append(line.replace(showDetails, ""))
+                val start = length
+                withStyle(SpanStyle(
+                    color = colors.primary,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                )) {
+                    append(linkText)
+                }
+                addStringAnnotation("ACTION", "SHOW_DETAILS:$detailIndex", start = start, end = length)
+                detailIndex++
+                if (index < lines.lastIndex) append("\n")
+            }
+            heading > 0 -> {
+                val fontSize = (48 - heading * 10).let { if (it < 14) 14 else it }.sp
+                val headingIndentWidth = (
+                    headingIndent.count { it == '\t' } * 16 +
+                        headingIndent.count { it == ' ' } * 4
+                    ).sp
+
+                val isListInHeader = content.startsWith("-") || content.startsWith("*")
+                val finalContent = if (isListInHeader) content.drop(1).trimStart() else content
+                val headerSymbol = if (isListInHeader) "• " else ""
+                val symbolColor = if (colors.isDark) Color.White else Color.Black
+
+                withStyle(
+                    androidx.compose.ui.text.TextStyle(
+                        lineHeight = fontSize,
+                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                            includeFontPadding = false
+                        ),
+                        lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                            alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                            trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both
+                        )
+                    ).toParagraphStyle().copy(
+                        textIndent = TextIndent(
+                            firstLine = headingIndentWidth,
+                            restLine = headingIndentWidth
+                        )
+                    )
+                ) {
+                    withStyle(SpanStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = fontSize,
+                        color = colors.primary
+                    )) {
+                        if (headerSymbol.isNotEmpty()) {
+                            withStyle(SpanStyle(color = symbolColor)) {
+                                append(headerSymbol)
+                            }
+                        }
+                        appendInlineMarkdown(value = finalContent, colors = colors)
+                    }
+                // Move newline inside the block to follow the header\'s lineHeight
+                if (index < lines.lastIndex) append("\n")
+                }
+            }
+            clean.startsWith("> ") -> {
+                withStyle(SpanStyle(
+                    fontStyle = FontStyle.Italic,
+                    color = colors.quote
+                )) {
+                    append("▎ ")
+                    appendInlineMarkdown(value = clean.drop(2), colors = colors)
+                    if (index < lines.lastIndex) append("\n")
+                }
+            }
+            clean.startsWith("- ") || clean.startsWith("* ") -> {
+                val indent = headingIndent.replace("\t", "    ")
+                append(indent)
+                val symbolColor = if (colors.isDark) Color.White else Color.Black
+                withStyle(SpanStyle(color = symbolColor)) {
+                    append("• ")
+                }
+                appendInlineMarkdown(value = clean.drop(2), colors = colors)
+                if (index < lines.lastIndex) append("\n")
+            }
+            clean.matches(Regex("^\\d+\\.\\s.*")) -> {
+                val number = clean.substringBefore(".")
+                withStyle(SpanStyle(color = colors.onBackground)) {
+                    append("$number. ")
+                }
+                appendInlineMarkdown(value = clean.substringAfter(". ").trim(), colors = colors)
+                if (index < lines.lastIndex) append("\n")
+            }
+            else -> {
+                appendInlineMarkdown(value = visualLine, colors = colors)
+                if (index < lines.lastIndex) append("\n")
+            }
+        }
+    }
+}
+
+fun AnnotatedString.Builder.appendInlineMarkdown(
+    value: String,
+    colors: AgentColors
+) {
+    val regex = Regex("""(\*\*.+?\*\*)|(\*.+?\*)|(`.+?`)|(\[.+?\]\(.+?\))""")
+    var cursor = 0
+
+    regex.findAll(value).forEach { match ->
+        append(value.substring(cursor, match.range.first))
+        val token = match.value
+
+        when {
+            token.startsWith("**") -> {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.emphasis)) {
+                    append(token.drop(2).dropLast(2))
+                }
+            }
+            token.startsWith("*") -> {
+                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                    append(token.drop(1).dropLast(1))
+                }
+            }
+            token.startsWith("`") -> {
+                val inlineCode = token.drop(1).dropLast(1)
+                if (inlineCode.startsWith("/")) {
+                    withStyle(SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        color = colors.primary,
+                        textDecoration = TextDecoration.Underline
+                    )) {
+                        val start = length
+                        append(inlineCode)
+                        addStringAnnotation("ACTION", "SLASH_COMMAND:$inlineCode", start, length)
+                    }
+                    cursor = match.range.last + 1
+                    return@forEach
+                }
+                withStyle(SpanStyle(
+                    fontFamily = FontFamily.Monospace,
+                    background = colors.inlineCodeBackground,
+                    color = colors.inlineCodeText
+                )) {
+                    append(inlineCode)
+                }
+            }
+            token.startsWith("[") -> {
+                val linkText = token.substringAfter("[").substringBefore("]")
+                val linkUrl = token.substringAfter("](").removeSuffix(")")
+                withStyle(SpanStyle(
+                    color = colors.primary,
+                    textDecoration = TextDecoration.Underline
+                )) {
+                    addStringAnnotation("URL", linkUrl, start = length, end = length + linkText.length)
+                    append(linkText)
+                }
+            }
+        }
+
+        cursor = match.range.last + 1
+    }
+
+    append(value.substring(cursor))
+}
+
+fun isImageUrl(url: String, context: Context? = null): Boolean {
+    if (url.startsWith("content://")) {
+        val mimeType = context?.contentResolver?.getType(Uri.parse(url))
+        if (mimeType != null) {
+            return mimeType.startsWith("image/")
+        }
+        // Fallback to extension check if mime type is null
+    }
+    return Regex("\\.(png|jpe?g|gif|webp|heic)(\\?|%|$)", RegexOption.IGNORE_CASE).containsMatchIn(url)
+}
+
+fun openInBrowser(context: Context, url: String) {
+    val target = if (!url.contains("://")) "https://$url" else url
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
+    }
+}

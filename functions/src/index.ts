@@ -1,32 +1,48 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {defineSecret} from "firebase-functions/params";
 import {setGlobalOptions} from "firebase-functions";
-// import {onRequest} from "firebase-functions/https";
-// import * as logger from "firebase-functions/logger";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+import * as logger from "firebase-functions/logger";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// 전역 설정: 최대 인스턴스 제한 (비용 조절)
+setGlobalOptions({maxInstances: 10, region: "asia-northeast3"});
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({maxInstances: 10});
+// Secret Manager에서 관리할 API 키 정의
+const geminiKey = defineSecret("GEMINI_API_KEY");
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+/**
+ * Gemini에게 질문을 보내고 답변을 받는 Callable Function
+ */
+export const askGemini = onCall({secrets: [geminiKey]}, async (request) => {
+  // 1. 인증 확인
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요한 서비스입니다.");
+  }
+
+  const prompt = request.data.prompt;
+  if (!prompt || typeof prompt !== "string") {
+    throw new HttpsError("invalid-argument", "질문(prompt) 내용을 입력해주세요.");
+  }
+
+  try {
+    // 2. Gemini SDK 초기화
+    const genAI = new GoogleGenerativeAI(geminiKey.value());
+    const model = genAI.getGenerativeModel({model: "gemini-3.5-flash-lite"});
+
+    // 3. 답변 생성
+    logger.info(`User ${request.auth.uid} asked: ` +
+                `${prompt.substring(0, 30)}...`);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // 4. 결과 반환
+    return {
+      text: text,
+      status: "success",
+    };
+  } catch (error) {
+    logger.error("Gemini API Error:", error);
+    throw new HttpsError("internal", "Gemini 답변 생성 중 오류가 발생했습니다.");
+  }
+});

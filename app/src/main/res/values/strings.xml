@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">RAGent</string>
+    <string name="ai_answer_prefix">Gemini 답변:</string>
+    <string name="show_details_link">자세히 보기</string>
+    <string name="copy">복사</string>
+    <string name="view_code">코드 보기</string>
+    <string name="code_copied">코드가 클립보드에 복사되었습니다.</string>
+    <string name="download_diagram">다이어그램 다운로드</string>
+    <string name="diagram_saved">다이어그램이 저장되었습니다.</string>
+    <string name="copy_diagram_code">다이어그램 코드 복사</string>
+    <string name="view_full_diagram">다이어그램 전체 보기</string>
+    <string name="mermaid_error_details">상세 에러 내용</string>
+    <string name="mermaid_error_source">소스 코드</string>
+    <string name="mermaid_error_title">다이어그램 렌더링 오류</string>
+    <string name="ask_ai">AI에게 질문하기</string>
+    <string name="confirm">확인</string>
 </resources>
