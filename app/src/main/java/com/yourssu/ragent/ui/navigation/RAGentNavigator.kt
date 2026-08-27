@@ -23,13 +23,17 @@ import com.yourssu.ragent.model.ProjectTab
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.DataHelpers
 import com.yourssu.ragent.ui.ScrollStates
+import com.yourssu.ragent.ui.agent.AgentChatScreen
 import com.yourssu.ragent.ui.chat.ChatRoute
 import com.yourssu.ragent.ui.person.PersonDetailScreen
+import com.yourssu.ragent.ui.project.AgentTab
+import com.yourssu.ragent.ui.project.AgentViewModel
 import com.yourssu.ragent.ui.project.ProjectHomeScreen
 import com.yourssu.ragent.ui.project.ProjectInviteDialog
 import com.yourssu.ragent.ui.project.ProjectViewModel
 import com.yourssu.ragent.ui.projectlist.CreateProjectDialog
 import com.yourssu.ragent.ui.projectlist.ProjectListScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun RAGentNavigator(
@@ -44,6 +48,7 @@ fun RAGentNavigator(
     onJoinErrorChange: (String?) -> Unit
 ) {
     val projects = projectViewModel.projects
+    val agentViewModel: AgentViewModel = viewModel()
     val context = LocalContext.current
     var screen by remember { mutableStateOf<AppScreen>(AppScreen.ProjectList) }
     var selectedTab by remember { mutableStateOf(ProjectTab.Docs) }
@@ -165,7 +170,19 @@ fun RAGentNavigator(
                             screen = AppScreen.ProjectList
                         }
                     }
+                },
+                onAgentSessionClick = { session ->
+                    agentViewModel.selectSession(project.id, session.id)
+                    screen = AppScreen.AgentChat(project)
                 }
+            )
+        }
+
+        is AppScreen.AgentChat -> {
+            AgentChatScreen(
+                project = current.project,
+                viewModel = agentViewModel,
+                onBack = { screen = AppScreen.ProjectHome(current.project) }
             )
         }
 

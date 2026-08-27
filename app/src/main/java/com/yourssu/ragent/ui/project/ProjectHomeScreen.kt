@@ -73,7 +73,8 @@ fun ProjectHomeScreen(
     onCreateInvite: (Role, Boolean) -> Unit,
     onProjectVisibilityChange: (ProjectVisibility, (Boolean) -> Unit) -> Unit,
     onDeleteProject: () -> Unit,
-    onLeaveProject: () -> Unit
+    onLeaveProject: () -> Unit,
+    onAgentSessionClick: (AiChatSession) -> Unit
 ) {
     var showDetails by remember { mutableStateOf(false) }
     var showRefreshComplete by remember { mutableStateOf(false) }
@@ -120,7 +121,10 @@ fun ProjectHomeScreen(
                         onRoleChange = onMemberRoleChange,
                         onMemberDelete = onMemberDelete
                     )
-                    ProjectTab.Agent -> AgentTab()
+                    ProjectTab.Agent -> AgentTab(
+                        project = project,
+                        onSessionClick = onAgentSessionClick
+                    )
                 }
             }
         }

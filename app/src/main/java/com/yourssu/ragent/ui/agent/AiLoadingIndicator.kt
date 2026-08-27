@@ -1,4 +1,4 @@
-package com.yourssu.ragent.ui.chat.reference
+package com.yourssu.ragent.ui.agent
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing

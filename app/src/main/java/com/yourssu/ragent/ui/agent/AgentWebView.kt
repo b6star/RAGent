@@ -1,12 +1,18 @@
-package com.yourssu.ragent.ui.chat.reference
+package com.yourssu.ragent.ui.agent
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.LruCache
+import android.view.MotionEvent
+import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -22,11 +28,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
 import com.yourssu.ragent.R
-import com.yourssu.ragent.ui.chat.reference.theme.AgentTheme
+import com.yourssu.ragent.ui.agent.theme.AgentTheme
 
 /**
  * [Performance optimization - render result caching]
@@ -384,7 +389,7 @@ fun CodeWebView(
                         isHorizontalScrollBarEnabled = true
                         isVerticalScrollBarEnabled = false
                         isScrollbarFadingEnabled = false
-                        scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_OVERLAY
+                        scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
@@ -395,7 +400,7 @@ fun CodeWebView(
                         addJavascriptInterface(object {
                             @JavascriptInterface
                             fun onDiagramRendered(token: Int, newHeight: Int) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                Handler(Looper.getMainLooper()).post {
                                     if (token == activeRenderToken.value) {
                                         val newDpHeight = newHeight.dp + 12.dp
                                         height.value = newDpHeight.coerceAtLeast(50.dp)
@@ -405,7 +410,7 @@ fun CodeWebView(
 
                             @JavascriptInterface
                             fun onMermaidError(token: Int, message: String) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                Handler(Looper.getMainLooper()).post {
                                     if (token == activeRenderToken.value) {
                                         mermaidError = message.takeIf { it.isNotBlank() }
                                     }
@@ -414,7 +419,7 @@ fun CodeWebView(
 
                             @JavascriptInterface
                             fun onDiagramSvg(token: Int, svg: String) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                Handler(Looper.getMainLooper()).post {
                                     // [Performance optimization] Store the Mermaid render result SVG in the cache.
                                     // Discard "late responses from an older WebView" by checking the token.
                                     if (token == activeRenderToken.value && svg.isNotBlank()) {
@@ -425,7 +430,7 @@ fun CodeWebView(
 
                             @JavascriptInterface
                             fun onCodeHighlighted(token: Int, html: String) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                Handler(Looper.getMainLooper()).post {
                                     // [Performance optimization] Store the hljs highlighting result HTML in the cache.
                                     if (token == activeRenderToken.value && html.isNotBlank()) {
                                         CodeRenderCache.highlightedHtml.put(activeCacheKey.value, html)
@@ -445,12 +450,12 @@ fun CodeWebView(
 
                         setOnTouchListener { view, event ->
                             when (event.action) {
-                                android.view.MotionEvent.ACTION_DOWN -> {
+                                MotionEvent.ACTION_DOWN -> {
                                     startX = event.x
                                     startY = event.y
                                     view.parent?.requestDisallowInterceptTouchEvent(true)
                                 }
-                                android.view.MotionEvent.ACTION_MOVE -> {
+                                MotionEvent.ACTION_MOVE -> {
                                     val dx = Math.abs(event.x - startX)
                                     val dy = Math.abs(event.y - startY)
                                     if (dy > dx) {
@@ -496,8 +501,8 @@ fun CodeWebView(
             Row {
                 IconButton(
                     onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("code", normalizedCode))
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("code", normalizedCode))
                     }
                 ) {
                     Icon(
@@ -562,9 +567,9 @@ fun CodeWebView(
                     }
                     IconButton(
                         onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(
-                                android.content.ClipData.newPlainText("mermaid-error", errorMessage)
+                                ClipData.newPlainText("mermaid-error", errorMessage)
                             )
                         }
                     ) {

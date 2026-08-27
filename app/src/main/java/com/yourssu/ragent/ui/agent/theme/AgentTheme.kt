@@ -1,4 +1,4 @@
-package com.yourssu.ragent.ui.chat.reference.theme
+package com.yourssu.ragent.ui.agent.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -33,6 +33,9 @@ data class AgentColors(
     val error: Color,
     val errorContainer: Color,
     val onErrorContainer: Color,
+    val primaryContainer: Color,
+    val onPrimaryContainer: Color,
+    val onSurface: Color,
     // Messages
     val userBubble: Color,
     val assistantBubble: Color,
@@ -48,6 +51,11 @@ data class AgentColors(
     val codeBackground: Color,
     val codeBackgroundHex: String,
     val mermaidErrorHex: String,
+    // Glassmorphism
+    val glassBackground: Color,
+    val glassBorder: Color,
+    val glassContent: Color,
+    val glassIconBackground: Color,
     // Other
     val attachmentRemoveIcon: Color = Color.White,
     val geminiIconTint: Color = Color.Unspecified
@@ -66,9 +74,12 @@ val DefaultLightColors = AgentColors(
     error = Color(0xFFEA0027),
     errorContainer = Color(0xFFFFE5E9),
     onErrorContainer = Color(0xFFB3001E),
-    userBubble = Color(0xFFE2E2E2),
+    primaryContainer = Color(0xFFEEEEEE),
+    onPrimaryContainer = Color(0xFF1A1A1B),
+    onSurface = Color(0xFF1A1A1B),
+    userBubble = Color(0xFF1A1A1B),
     assistantBubble = Color.Transparent,
-    userText = Color(0xFF1A1A1B),
+    userText = Color.White,
     assistantText = Color(0xFF1A1A1B),
     primary = Color(0xFF1A1A1B),
     onPrimary = Color.White,
@@ -78,7 +89,11 @@ val DefaultLightColors = AgentColors(
     inlineCodeBackground = Color(0xFFEEEEEE),
     codeBackground = Color(0xFFE2E8F0),
     codeBackgroundHex = "#E2E8F0",
-    mermaidErrorHex = "#EA0027"
+    mermaidErrorHex = "#EA0027",
+    glassBackground = Color.Black.copy(alpha = 0.88f),
+    glassBorder = Color.White.copy(alpha = 0.2f),
+    glassContent = Color.White,
+    glassIconBackground = Color.White.copy(alpha = 0.1f)
 )
 
 val DefaultDarkColors = AgentColors(
@@ -91,10 +106,13 @@ val DefaultDarkColors = AgentColors(
     error = Color(0xFFFF4500),
     errorContainer = Color(0xFF341009),
     onErrorContainer = Color(0xFFFFB399),
-    userBubble = Color(0xFF272729),
+    primaryContainer = Color(0xFF2C2C2E),
+    onPrimaryContainer = Color.White,
+    onSurface = Color(0xFFF0F6FC),
+    userBubble = Color(0xFF3A3A3C),
     assistantBubble = Color.Transparent,
-    userText = Color(0xFFD7DADC),
-    assistantText = Color(0xFFD7DADC),
+    userText = Color.White,
+    assistantText = Color(0xFFF0F6FC),
     primary = Color.White,
     onPrimary = Color.Black,
     emphasis = Color.White,
@@ -103,136 +121,13 @@ val DefaultDarkColors = AgentColors(
     inlineCodeBackground = Color(0xFF2D2D2D),
     codeBackground = Color(0xFF1A1A1B),
     codeBackgroundHex = "#1A1A1B",
-    mermaidErrorHex = "#FF4500"
+    mermaidErrorHex = "#FF4500",
+    glassBackground = Color.Black.copy(alpha = 0.88f),
+    glassBorder = Color.White.copy(alpha = 0.15f),
+    glassContent = Color.White,
+    glassIconBackground = Color.White.copy(alpha = 0.1f)
 )
 
-/**
- * 1. BLUE theme
- */
-val BlueLightColors = AgentColors(
-    isDark = false,
-    background = Color(0xFFF5F7FA),
-    onBackground = Color(0xFF1E293B),
-    surface = Color(0xFFF8FAFC),
-    metadataText = Color(0xFF64748B),
-    onSurfaceVariant = Color(0xFF64748B),
-    error = Color(0xFFEF4444),
-    errorContainer = Color(0xFFFFE4E6),
-    onErrorContainer = Color(0xFF991B1B),
-    userBubble = Color(0xFFDBEAFE),
-    assistantBubble = Color.Transparent,
-    userText = Color(0xFF1E40AF),
-    assistantText = Color(0xFF1E293B),
-    primary = Color(0xFF1C00D8),
-    onPrimary = Color.White,
-    emphasis = Color(0xFF001E2F),     
-    quote = Color(0xFF475569),
-    inlineCodeText = Color(0xFFD81B60),
-    inlineCodeBackground = Color(0xFFF1F5F9),
-    codeBackground = Color(0xFFBCC6D0),
-    codeBackgroundHex = "#BCC6D0",
-    mermaidErrorHex = "#FF5252"
-)
-
-val BlueDarkColors = AgentColors(
-    isDark = true,
-    background = Color(0xFF0F172A),
-    onBackground = Color(0xFFE2E8F0),
-    surface = Color(0xFF1E293B),
-    metadataText = Color(0xFF64748B),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    error = Color(0xFFEF4444),
-    errorContainer = Color(0xFF7F1D1D),
-    onErrorContainer = Color(0xFFFECDD3),
-    userBubble = Color(0xFF1E3A8A),
-    assistantBubble = Color.Transparent,
-    userText = Color(0xFFDBEAFE),
-    assistantText = Color(0xFFE2E8F0),
-    primary = Color(0xFFD1E4FF),      
-    onPrimary = Color(0xFF003258),
-    emphasis = Color(0xFF90CAF9),     
-    quote = Color(0xFFCBD5E1),
-    inlineCodeText = Color(0xFFF472B6),
-    inlineCodeBackground = Color(0xFF334155),
-    codeBackground = Color(0xFF1E1E1E),
-    codeBackgroundHex = "#1E1E1E",
-    mermaidErrorHex = "#FF5252"
-)
-
-/**
- * 2. GREEN theme
- */
-val GreenLightColors = BlueLightColors.copy(
-    background = Color(0xFFF0F4F0),
-    onBackground = Color(0xFF1B2E1B),
-    userBubble = Color(0xFFE8F5E9),
-    userText = Color(0xFF1B5E20),
-    primary = Color(0xFF2E7D32),
-    onPrimary = Color.White,
-    emphasis = Color(0xFF002105),
-    inlineCodeText = Color(0xFF2E7D32)
-)
-
-val GreenDarkColors = BlueDarkColors.copy(
-    background = Color(0xFF0D1B0D),
-    onBackground = Color(0xFFE8F5E9),
-    userBubble = Color(0xFF1B301B),
-    userText = Color(0xFFE8F5E9),
-    primary = Color(0xFF81C784),
-    onPrimary = Color(0xFF00390A),
-    emphasis = Color(0xFFA5D6A7),
-    inlineCodeText = Color(0xFF81C784)
-)
-
-/**
- * 3. RED theme
- */
-val RedLightColors = BlueLightColors.copy(
-    background = Color(0xFFFEF2F2),
-    onBackground = Color(0xFF450A0A),
-    userBubble = Color(0xFFFEE2E2),
-    userText = Color(0xFF991B1B),
-    primary = Color(0xFFDC2626),
-    onPrimary = Color.White,
-    emphasis = Color(0xFF450A0A),
-    inlineCodeText = Color(0xFFDC2626)
-)
-
-val RedDarkColors = BlueDarkColors.copy(
-    background = Color(0xFF180505),
-    onBackground = Color(0xFFFEE2E2),
-    userBubble = Color(0xFF3B0B0B),
-    userText = Color(0xFFFEE2E2),
-    primary = Color(0xFFF87171),
-    onPrimary = Color(0xFF620007),
-    emphasis = Color(0xFFFFCDD2),
-    inlineCodeText = Color(0xFFF87171)
-)
-
-/**
- * 4. PURPLE theme
- */
-val PurpleLightColors = BlueLightColors.copy(
-    background = Color(0xFFFAF5FF),
-    onBackground = Color(0xFF2E004F),
-    userBubble = Color(0xFFF3E8FF),
-    userText = Color(0xFF6B21A8),
-    primary = Color(0xFF9333EA),
-    onPrimary = Color.White,
-    emphasis = Color(0xFF2E004F),
-    inlineCodeText = Color(0xFF9333EA)
-)
-
-val PurpleDarkColors = BlueDarkColors.copy(
-    background = Color(0xFF11081C),
-    onBackground = Color(0xFFF3E8FF),
-    userBubble = Color(0xFF260D42),
-    userText = Color(0xFFF3E8FF),
-    primary = Color(0xFFC084FC),
-    onPrimary = Color(0xFF3B0060),
-    emphasis = Color(0xFFE1BEE7),
-    inlineCodeText = Color(0xFFC084FC)
-)
 
 internal val LocalAgentColors = staticCompositionLocalOf { DefaultLightColors }
 
@@ -249,13 +144,8 @@ fun AgentChatTheme(
     isDark: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colors = when (themeType) {
-        AgentThemeType.DEFAULT -> if (isDark) DefaultDarkColors else DefaultLightColors
-        AgentThemeType.BLUE -> if (isDark) BlueDarkColors else BlueLightColors
-        AgentThemeType.GREEN -> if (isDark) GreenDarkColors else GreenLightColors
-        AgentThemeType.RED -> if (isDark) RedDarkColors else RedLightColors
-        AgentThemeType.PURPLE -> if (isDark) PurpleDarkColors else PurpleLightColors
-    }
+    val colors = if (isDark) DefaultDarkColors else DefaultLightColors
+
 
     val colorScheme = if (isDark) {
         darkColorScheme(

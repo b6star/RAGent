@@ -16,6 +16,7 @@ sealed interface AppScreen {
         val listMode: Boolean = false,
         val returnToList: Boolean = false
     ) : AppScreen
+    data class AgentChat(val project: Project) : AppScreen
     data class PersonDetail(
         val person: Person,
         val returnTo: AppScreen,
