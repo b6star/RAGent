@@ -116,6 +116,14 @@ service cloud.firestore {
         || isAdmin(projectId);
     }
 
+    match /users/{userId}/ai_chats/{projectId}/sessions/{sessionId} {
+      allow read, write: if isUser(userId);
+    }
+
+    match /users/{userId}/ai_chats/{projectId}/sessions/{sessionId}/messages/{messageId} {
+      allow read, write: if isUser(userId);
+    }
+
     // Any collection not explicitly listed above is denied by default.
   }
 }

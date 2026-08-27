@@ -1,4 +1,4 @@
-package com.yourssu.ragent.ui.chat.reference
+package com.yourssu.ragent.ui.agent
 
 import android.content.Context
 import android.content.Intent
@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.ClickableText
@@ -19,18 +18,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yourssu.ragent.ui.chat.reference.theme.AgentColors
-import com.yourssu.ragent.ui.chat.reference.theme.AgentTheme
+import com.yourssu.ragent.R
+import com.yourssu.ragent.ui.agent.theme.AgentColors
+import com.yourssu.ragent.ui.agent.theme.AgentTheme
 
 @Composable
 fun AiChatMarkdownView(
@@ -56,8 +59,8 @@ fun AiChatMarkdownView(
             blocks.forEach { block ->
                 when (block) {
                     is MarkdownBlock.Text -> {
-                        val aiPrefix = stringResource(com.yourssu.ragent.R.string.ai_answer_prefix)
-                        val showDetails = stringResource(com.yourssu.ragent.R.string.show_details_link)
+                        val aiPrefix = stringResource(R.string.ai_answer_prefix)
+                        val showDetails = stringResource(R.string.show_details_link)
                         val text = remember(block.value, colors, aiPrefix, showDetails) {
                             markdownText(
                                 value = block.value,
@@ -248,14 +251,14 @@ fun markdownText(
                 val symbolColor = if (colors.isDark) Color.White else Color.Black
 
                 withStyle(
-                    androidx.compose.ui.text.TextStyle(
+                    TextStyle(
                         lineHeight = fontSize,
-                        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                        platformStyle = PlatformTextStyle(
                             includeFontPadding = false
                         ),
-                        lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
-                            alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
-                            trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.Both
                         )
                     ).toParagraphStyle().copy(
                         textIndent = TextIndent(

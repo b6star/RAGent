@@ -1,207 +1,266 @@
 package com.yourssu.ragent.ui.project
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.yourssu.ragent.ui.chat.reference.AiChatMarkdownView
-import com.yourssu.ragent.ui.chat.reference.AiLoadingIndicator
-import com.yourssu.ragent.ui.chat.reference.theme.AgentChatTheme
+import com.yourssu.ragent.model.Project
+import com.yourssu.ragent.ui.agent.theme.AgentChatTheme
+import com.yourssu.ragent.ui.agent.theme.AgentTheme
 import com.yourssu.ragent.ui.components.AppIcon
 import com.yourssu.ragent.ui.components.RAGentIcon
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun AgentTab(viewModel: AgentViewModel = viewModel()) {
-    val messages = viewModel.messages
-    val listState = rememberLazyListState()
+fun AgentTab(
+    project: Project,
+    viewModel: AgentViewModel = viewModel(),
+    onSessionClick: (AiChatSession) -> Unit
+) {
+    val sessions = viewModel.sessions.filter { it.projectId == project.id }
+    val colors = AgentTheme.colors
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
+    var sessionToRename by remember { mutableStateOf<AiChatSession?>(null) }
+    
+    // 탭 진입 시 세션 목록 로드
+    LaunchedEffect(project.id) {
+        viewModel.loadSessions(project.id)
     }
 
     AgentChatTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    Text(
-                        text = "프로젝트 Agent",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                items(messages) { message ->
-                    AiChatBubble(message)
-                }
-                if (viewModel.isLoading) {
-                    item {
-                        AiLoadingIndicator(modifier = Modifier.size(32.dp))
-                    }
-                }
-                viewModel.error?.let {
-                    item {
-                        Text("에러: $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            ChatInputArea(
-                onSend = { viewModel.askQuestion(it) },
-                isLoading = viewModel.isLoading
-            )
-        }
-    }
-}
-
-@Composable
-fun AiChatBubble(message: AiChatMessage) {
-    val isUser = message.isUser
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
-    ) {
-        Row(
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (!isUser) {
-                Surface(
-                    modifier = Modifier.size(32.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
+        Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+            if (sessions.isEmpty()) {
+                EmptySessionsView(onStartChat = { 
+                    viewModel.startNewSession(project.id, "새로운 대화", onCreated = onSessionClick)
+                })
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        RAGentIcon(AppIcon.Agent, MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    items(sessions) { session ->
+                        SessionItem(
+                            session = session, 
+                            onClick = { onSessionClick(session) },
+                            onRename = { sessionToRename = session },
+                            onDelete = { viewModel.deleteSession(project.id, session.id) }
+                        )
                     }
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
-            Surface(
-                color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (isUser) 16.dp else 4.dp,
-                    bottomEnd = if (isUser) 4.dp else 16.dp
-                ),
-                modifier = Modifier.widthIn(max = 280.dp)
-            ) {
-                Box(modifier = Modifier.padding(12.dp)) {
-                    if (isUser) {
-                        Text(
-                            text = message.text,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    } else {
-                        AiChatMarkdownView(
-                            markdown = message.text,
-                            isUser = isUser
-                        )
-                    }
+
+            viewModel.error?.let {
+                Snackbar(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp, start = 16.dp, end = 16.dp),
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ) {
+                    Text(it)
                 }
+            }
+
+            FloatingActionButton(
+                onClick = { 
+                    viewModel.startNewSession(project.id, "새로운 대화", onCreated = onSessionClick)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                containerColor = colors.primary,
+                contentColor = colors.onPrimary,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New Chat")
             }
         }
+    }
+
+    sessionToRename?.let { session ->
+        RenameSessionDialog(
+            initialTitle = session.title,
+            onDismiss = { sessionToRename = null },
+            onConfirm = { newTitle ->
+                viewModel.renameSession(project.id, session.id, newTitle)
+                sessionToRename = null
+            }
+        )
     }
 }
 
 @Composable
-fun ChatInputArea(onSend: (String) -> Unit, isLoading: Boolean) {
-    var text by remember { mutableStateOf("") }
+fun SessionItem(
+    session: AiChatSession, 
+    onClick: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val colors = AgentTheme.colors
+    var showMenu by remember { mutableStateOf(false) }
 
-    Surface(
+    Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 2.dp,
-        shadowElevation = 8.dp
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surface)
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(16.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = colors.primary.copy(alpha = 0.1f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    RAGentIcon(AppIcon.Agent, colors.primary, modifier = Modifier.size(20.dp))
+                }
+            }
+            
+            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp)
             ) {
-                if (text.isEmpty()) {
+                Text(
+                    text = session.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (session.lastMessage.isNotEmpty()) {
                     Text(
-                        text = "질문을 입력하세요...",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = session.lastMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    enabled = !isLoading
-                )
             }
-            IconButton(
-                onClick = {
-                    if (text.isNotBlank()) {
-                        onSend(text)
-                        text = ""
+            
+            Column(horizontalAlignment = Alignment.End) {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            Icons.Default.MoreVert, 
+                            contentDescription = "Options",
+                            tint = colors.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
                     }
-                },
-                enabled = !isLoading && text.isNotBlank()
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
-                    tint = if (text.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("이름 변경") },
+                            onClick = {
+                                showMenu = false
+                                onRename()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            }
+                        )
+                    }
+                }
+                Text(
+                    text = formatTime(session.updatedAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
         }
     }
+}
+
+@Composable
+fun RenameSessionDialog(
+    initialTitle: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialTitle) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("대화 이름 변경") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("이름") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (text.isNotBlank()) onConfirm(text) }) {
+                Text("확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
+
+@Composable
+fun EmptySessionsView(onStartChat: () -> Unit) {
+    val colors = AgentTheme.colors
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        RAGentIcon(AppIcon.Agent, colors.onSurfaceVariant.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "시작된 대화가 없습니다.",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.onSurfaceVariant
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = onStartChat,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.primary,
+                contentColor = colors.onPrimary
+            )
+        ) {
+            Text("새로운 대화 시작하기")
+        }
+    }
+}
+
+fun formatTime(timestamp: Long): String {
+    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }

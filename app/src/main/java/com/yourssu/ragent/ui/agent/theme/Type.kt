@@ -1,4 +1,4 @@
-package com.yourssu.ragent.ui.chat.reference.theme
+package com.yourssu.ragent.ui.agent.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
