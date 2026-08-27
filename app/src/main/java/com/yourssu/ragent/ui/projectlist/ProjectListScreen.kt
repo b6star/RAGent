@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,11 +19,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,21 +44,28 @@ import com.yourssu.ragent.ui.theme.ConnectedColorLight
 import com.yourssu.ragent.ui.theme.DisconnectedColorDark
 import com.yourssu.ragent.ui.theme.DisconnectedColorLight
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectListScreen(
     projects: List<Project>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
     onProjectClick: (Project) -> Unit,
     onChatClick: () -> Unit,
     onCreateClick: () -> Unit
 ) {
     Scaffold { padding ->
-        Box(
+        PullToRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = onRetry,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
         ) {
             LazyColumn(
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -64,8 +75,43 @@ fun ProjectListScreen(
                         onCreateClick = onCreateClick
                     )
                 }
+                when {
+                    errorMessage != null -> item {
+                        ProjectListStatus(errorMessage, actionLabel = "다시 시도", onAction = onRetry)
+                    }
+                    isLoading -> Unit
+                    projects.isEmpty() -> item {
+                        ProjectListStatus("참여 중인 프로젝트가 없습니다.")
+                    }
+                }
                 items(projects) { project ->
                     ProjectCard(project = project, onClick = { onProjectClick(project) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectListStatus(
+    message: String,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {}
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (actionLabel != null) {
+                TextButton(onClick = onAction) {
+                    Text(actionLabel)
                 }
             }
         }

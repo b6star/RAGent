@@ -16,7 +16,8 @@ data class ProjectMember(
     val id: String,
     val personId: String,
     val role: Role,
-    val summary: String
+    val summary: String,
+    val name: String = ""
 )
 
 data class Person(
