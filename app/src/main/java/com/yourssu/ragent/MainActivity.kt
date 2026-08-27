@@ -19,6 +19,10 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
@@ -89,6 +93,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        FirebaseApp.initializeApp(this)
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+
+        // 3. 빌드 환경에 따른 Provider 설정
+        val providerFactory = if (BuildConfig.DEBUG) {
+            // Development environment: Debug provider for emulators
+            DebugAppCheckProviderFactory.getInstance()
+        } else {
+            // Production environment: Play Integrity provider for real devices
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        }
+
+        firebaseAppCheck.installAppCheckProviderFactory(providerFactory)
     }
 
     override fun onNewIntent(intent: Intent) {
