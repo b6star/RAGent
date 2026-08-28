@@ -25,7 +25,8 @@ import com.yourssu.ragent.ui.project.ProjectViewModel
 @Composable
 fun RAGentApp(
     inviteLink: ProjectInviteLink? = null,
-    onInviteHandled: () -> Unit = {}
+    onInviteHandled: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     // ViewModel 및 의존성 생성
     val projectViewModel: ProjectViewModel = viewModel()
@@ -92,7 +93,8 @@ fun RAGentApp(
         joinError = joinError,
         onInviteHandled = onInviteHandled,
         onPendingInviteChange = { pendingInvite = it },
-        onJoinErrorChange = { joinError = it }
+        onJoinErrorChange = { joinError = it },
+        onLogout = onLogout
     )
 }
 

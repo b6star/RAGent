@@ -13,22 +13,26 @@ RAGent는 GitHub Repository와 Notion 문서를 프로젝트 지식으로 연결
 - 소유 프로젝트와 참여 프로젝트 통합 조회
 - Firestore Security Rules 및 Collection Group 인덱스
 - 프로젝트 목록 Pull-to-Refresh
+- Agent 채팅 UI 및 세션 목록
+- Gemini, OpenAI, Anthropic 멀티 Provider 스트리밍
+- 개인 API 키 직접 호출과 개발자 키 Cloud Functions 호출 분리
+- Provider별 사용량 집계, 토큰 제한 및 오류 UX
 
-Phase 2 구현은 완료되었으며 PR #4 병합을 앞두고 있습니다. 다음 Phase에서는 Gemini AI 기본 연동을 시작합니다.
+Phase 1~3 구현이 완료되었습니다. Phase 3에서는 멀티 Provider AI 연동, 스트리밍, 사용량 통계, 토큰 제한, 오류 UX까지 반영했습니다.
 
-## 다음 Phase
+## 현재 Phase
 
-Phase 3의 목표는 RAG를 한 번에 완성하는 것이 아니라, 인증된 사용자의 질문을 Firebase 서버가 받아 Gemini 답변을 반환하는 최소 흐름을 먼저 만드는 것입니다.
+다음 작업은 Phase 4 공개 GitHub·Notion Source 연결입니다. 공개 URL 검증·정규화, Docs·Repository 열람, Source 상태 관리와 후속 RAG 입력을 준비합니다.
 
 ```mermaid
 flowchart LR
     A["Android Agent UI"] --> B["Firebase Cloud Functions"]
-    B --> C["Gemini"]
+    B --> C["Selected AI Provider"]
     C --> B
     B --> A
 ```
 
-Phase 3 이후 공개 GitHub 및 Notion 링크 수집, Chunking, Embedding, Firestore Vector Search를 순서대로 연결합니다.
+Phase 4 이후 변경된 Source만 Chunking 및 Embedding하고, Firestore Vector Search와 RAG Agent를 순서대로 연결합니다.
 
 ## 목표 구조
 

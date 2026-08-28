@@ -1,6 +1,7 @@
 package com.yourssu.ragent.ui.person
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,11 +20,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.AiProjectTokenUsage
 import com.yourssu.ragent.model.AiTokenUsage
@@ -41,6 +45,8 @@ import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.components.AppIcon
 import com.yourssu.ragent.ui.components.RAGentIcon
 import com.yourssu.ragent.ui.components.RoleMarker
+import com.yourssu.ragent.ui.theme.DangerAccentDark
+import com.yourssu.ragent.ui.theme.DangerAccentLight
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -51,9 +57,11 @@ fun PersonDetailScreen(
     profileSummary: String?,
     isCurrentUser: Boolean = false,
     usageDashboard: AiUsageDashboard = AiUsageDashboard(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     var showApiSettings by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
     val activeProjectIds = person.projects.mapTo(mutableSetOf()) { it.id }
     val excludedProjectUsages = if (isCurrentUser) {
         usageDashboard.projectUsages.values
@@ -184,10 +192,62 @@ fun PersonDetailScreen(
                 }
             }
         }
+
+        if (isCurrentUser) {
+            DangerActionCard("로그아웃", onClick = { showLogoutConfirm = true })
+        }
     }
 
     if (showApiSettings) {
         AiApiSettingsBottomSheet(onDismiss = { showApiSettings = false })
+    }
+
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text("로그아웃하시겠습니까?") },
+            text = { Text("현재 계정에서 로그아웃합니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirm = false
+                        onLogout()
+                    }
+                ) {
+                    Text(
+                        "로그아웃",
+                        color = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirm = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun DangerActionCard(text: String, onClick: () -> Unit) {
+    val accent = if (isSystemInDarkTheme()) DangerAccentDark else DangerAccentLight
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = accent.copy(alpha = 0.12f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            color = accent,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
