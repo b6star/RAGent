@@ -34,7 +34,6 @@ fun AgentTab(
     onSessionClick: (AiChatSession) -> Unit
 ) {
     val sessions = viewModel.sessions.filter { it.projectId == project.id }
-    val colors = AgentTheme.colors
 
     var sessionToRename by remember { mutableStateOf<AiChatSession?>(null) }
     
@@ -44,7 +43,8 @@ fun AgentTab(
     }
 
     AgentChatTheme {
-        Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+        val colors = AgentTheme.colors
+        Box(modifier = Modifier.fillMaxSize()) {
             if (sessions.isEmpty()) {
                 EmptySessionsView(onStartChat = { 
                     viewModel.startNewSession(project.id, "새로운 대화", onCreated = onSessionClick)
@@ -70,8 +70,8 @@ fun AgentTab(
             viewModel.error?.let {
                 Snackbar(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 100.dp, start = 16.dp, end = 16.dp),
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    containerColor = colors.errorContainer,
+                    contentColor = colors.onErrorContainer
                 ) {
                     Text(it)
                 }
@@ -182,7 +182,7 @@ fun SessionItem(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
+                            text = { Text("삭제", color = colors.error) },
                             onClick = {
                                 showMenu = false
                                 onDelete()

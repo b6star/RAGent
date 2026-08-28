@@ -17,10 +17,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -37,8 +44,10 @@ fun PersonDetailScreen(
     person: Person,
     profileRole: Role?,
     profileSummary: String?,
+    isCurrentUser: Boolean = false,
     onBack: () -> Unit
 ) {
+    var showApiSettings by remember { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 
     Column(
@@ -61,9 +70,30 @@ fun PersonDetailScreen(
                     RAGentIcon(AppIcon.Back, MaterialTheme.colorScheme.onSurface)
                 }
             }
-            Column(Modifier.padding(start = 14.dp)) {
+            Column(
+                Modifier
+                    .padding(start = 14.dp)
+                    .weight(1f)
+            ) {
                 Text(person.name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                 Text("프로필", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (isCurrentUser) {
+                Surface(
+                    onClick = { showApiSettings = true },
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "AI API 설정",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
         }
         Card(
@@ -106,6 +136,10 @@ fun PersonDetailScreen(
                 }
             }
         }
+    }
+
+    if (showApiSettings) {
+        AiApiSettingsBottomSheet(onDismiss = { showApiSettings = false })
     }
 }
 

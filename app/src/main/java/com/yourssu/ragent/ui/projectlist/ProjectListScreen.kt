@@ -25,6 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -64,6 +67,7 @@ fun ProjectListScreen(
     errorMessage: String?,
     onRetry: () -> Unit,
     onProjectClick: (Project) -> Unit,
+    onProfileClick: () -> Unit,
     onChatClick: () -> Unit,
     onCreateClick: () -> Unit
 ) {
@@ -95,6 +99,7 @@ fun ProjectListScreen(
             ) {
                 item {
                     ProjectListHeader(
+                        onProfileClick = onProfileClick,
                         onChatClick = onChatClick,
                         onCreateClick = onCreateClick
                     )
@@ -178,6 +183,7 @@ private fun ProjectListStatus(
 
 @Composable
 private fun ProjectListHeader(
+    onProfileClick: () -> Unit,
     onChatClick: () -> Unit,
     onCreateClick: () -> Unit
 ) {
@@ -193,6 +199,22 @@ private fun ProjectListHeader(
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Black
         )
+        Surface(
+            onClick = onProfileClick,
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 3.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "내 프로필",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
         Surface(
             onClick = onChatClick,
             modifier = Modifier.size(48.dp),

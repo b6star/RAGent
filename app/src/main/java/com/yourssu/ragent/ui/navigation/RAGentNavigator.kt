@@ -78,6 +78,12 @@ fun RAGentNavigator(
                 selectedTab = ProjectTab.Docs
                 screen = AppScreen.ProjectHome(it)
             },
+            onProfileClick = {
+                screen = AppScreen.PersonDetail(
+                    person = dataHelpers.personForId(CurrentUserId),
+                    returnTo = AppScreen.ProjectList
+                )
+            },
             onChatClick = { screen = AppScreen.Chat("Messages", "Inbox", listMode = true) },
             onCreateClick = { showCreateDialog = true }
         )
@@ -190,6 +196,7 @@ fun RAGentNavigator(
             person = current.person,
             profileRole = current.profileRole,
             profileSummary = current.profileSummary,
+            isCurrentUser = current.person.id == CurrentUserId,
             onBack = { screen = current.returnTo }
         )
 
