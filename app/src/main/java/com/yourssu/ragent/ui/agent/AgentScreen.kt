@@ -11,11 +11,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +38,7 @@ import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.ui.agent.theme.AgentChatTheme
 import com.yourssu.ragent.ui.agent.theme.AgentTheme
 import com.yourssu.ragent.ui.agent.theme.AgentThemeType
+import com.yourssu.ragent.ui.agent.theme.AgentColors
 import com.yourssu.ragent.ui.project.AgentViewModel
 import com.yourssu.ragent.ui.project.AiChatMessage
 import com.yourssu.ragent.ui.project.AiChatSession
@@ -52,16 +54,34 @@ fun AgentChatScreen(
     val sessionId = viewModel.currentSessionId ?: return
     val messages = viewModel.getMessagesForSession(sessionId)
     val session = viewModel.sessions.find { it.id == sessionId }
+    val sessionUsage = viewModel.usageDashboard.sessionUsages[sessionId]
     val listState = rememberLazyListState()
+    var showChatInfo by remember(sessionId) { mutableStateOf(false) }
     
     val apiState = remember { viewModel.aiApiKeyStorage.getState() }
 
     var inputAreaHeight by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    var previousImeBottom by remember(sessionId) { mutableIntStateOf(imeBottom) }
 
-    LaunchedEffect(messages.size, viewModel.isLoading) {
-        if (messages.isNotEmpty() || viewModel.isLoading) {
-            listState.animateScrollToItem(0)
+    val lastContentIndex = messages.size +
+        (if (viewModel.isLoading) 1 else 0) +
+        (if (viewModel.error != null) 1 else 0) - 1
+
+    // IME가 움직인 거리만큼 현재 리스트 위치를 같은 방향으로 이동한다.
+    // 특정 메시지로 강제 이동하지 않아 사용자가 보고 있던 위치를 유지한다.
+    SideEffect {
+        val imeDelta = imeBottom - previousImeBottom
+        if (imeDelta != 0) {
+            listState.dispatchRawDelta(imeDelta.toFloat())
+        }
+        previousImeBottom = imeBottom
+    }
+
+    LaunchedEffect(messages.size, viewModel.isLoading, viewModel.error) {
+        if (lastContentIndex >= 0) {
+            listState.scrollToItem(lastContentIndex)
         }
     }
 
@@ -75,9 +95,14 @@ fun AgentChatScreen(
                     session = session,
                     project = project,
                     selectedModelId = viewModel.selectedModelId,
-                    availableModels = apiState.provider.models,
+                    availableModels = if (apiState.hasStoredKey) {
+                        apiState.provider.models
+                    } else {
+                        apiState.provider.models.take(1)
+                    },
                     onBack = onBack,
-                    onModelSelected = { viewModel.updateSelectedModel(it) }
+                    onModelSelected = { viewModel.updateSelectedModel(it) },
+                    onInfoClick = { showChatInfo = true }
                 )
             }
         ) { padding ->
@@ -87,13 +112,10 @@ fun AgentChatScreen(
                     .consumeWindowInsets(padding)
                     .imePadding()
             ) {
-                val reversedMessages = messages.asReversed()
-                
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    reverseLayout = true,
-                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom),
+                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top),
                     contentPadding = PaddingValues(
                         top = padding.calculateTopPadding() + 16.dp,
                         bottom = inputAreaHeight + 8.dp,
@@ -101,7 +123,29 @@ fun AgentChatScreen(
                         end = 0.dp
                     )
                 ) {
-                    // 에러와 로딩바는 리스트 최하단(역순이므로 가장 먼저 정의)에 배치
+                    itemsIndexed(
+                        items = messages,
+                        key = { _, message -> message.id }
+                    ) { index, message ->
+                        AiChatBubble(
+                            message = message,
+                            isLast = index == messages.size - 1
+                        )
+                    }
+
+                    if (viewModel.isLoading) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                AiLoadingIndicator(modifier = Modifier.size(32.dp))
+                            }
+                        }
+                    }
+
                     viewModel.error?.let {
                         item {
                             Surface(
@@ -120,32 +164,11 @@ fun AgentChatScreen(
                             }
                         }
                     }
-
-                    if (viewModel.isLoading) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp), 
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                AiLoadingIndicator(modifier = Modifier.size(32.dp))
-                            }
-                        }
-                    }
-
-                    itemsIndexed(
-                        items = reversedMessages,
-                        key = { _, message -> message.id }
-                    ) { _, message ->
-                        AiChatBubble(message)
-                    }
                 }
 
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = padding.calculateBottomPadding())
                         .background(Color.Transparent)
                         .onGloballyPositioned { coordinates ->
                             inputAreaHeight = with(density) { coordinates.size.height.toDp() }
@@ -157,6 +180,16 @@ fun AgentChatScreen(
                     )
                 }
             }
+        }
+
+        if (showChatInfo) {
+            AiChatInfoDialog(
+                session = session,
+                project = project,
+                usage = sessionUsage,
+                messages = messages,
+                onDismiss = { showChatInfo = false }
+            )
         }
     }
 }
@@ -170,6 +203,7 @@ fun AgentChatHeader(
     availableModels: List<AiModel>,
     onBack: () -> Unit,
     onModelSelected: (String) -> Unit,
+    onInfoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = AgentTheme.colors
@@ -177,21 +211,21 @@ fun AgentChatHeader(
 
     Surface(
         color = if (colors.isDark) {
-            colors.background.copy(alpha = 0.9f)
+            colors.background.copy(alpha = 0.88f)
         } else {
-            Color(0xFFF1F5F9).copy(alpha = 0.85f)
+            Color(0xFFF1F5F9).copy(alpha = 0.88f)
         },
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
         border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
+            width = 0.5.dp,
             brush = if (colors.isDark) {
                 SolidColor(colors.glassBorder)
             } else {
                 Brush.verticalGradient(
                     listOf(
-                        Color.White.copy(alpha = 0.9f),
-                        Color(0xFFCBD5E1).copy(alpha = 0.4f)
+                        Color.White.copy(alpha = 0.6f),
+                        Color(0xFFCBD5E1).copy(alpha = 0.3f)
                     )
                 )
             }
@@ -235,37 +269,20 @@ fun AgentChatHeader(
                             tint = colors.onBackground
                         )
                     }
-                    DropdownMenu(
+                    ModelSelectionMenu(
                         expanded = showModelMenu,
                         onDismissRequest = { showModelMenu = false },
-                        modifier = Modifier.background(colors.background)
-                    ) {
-                        availableModels.forEach { model ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = model.name,
-                                            color = colors.onBackground,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        if (selectedModelId == model.id) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = colors.primary,
-                                                modifier = Modifier.size(16.dp).padding(start = 8.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    onModelSelected(model.id)
-                                    showModelMenu = false
-                                }
-                            )
-                        }
-                    }
+                        selectedModelId = selectedModelId,
+                        availableModels = availableModels,
+                        onModelSelected = onModelSelected
+                    )
+                }
+                IconButton(onClick = onInfoClick) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = "채팅 정보",
+                        tint = colors.onBackground
+                    )
                 }
             }
         )
@@ -273,7 +290,112 @@ fun AgentChatHeader(
 }
 
 @Composable
-fun AiChatBubble(message: AiChatMessage) {
+fun ModelSelectionMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    selectedModelId: String?,
+    availableModels: List<AiModel>,
+    onModelSelected: (String) -> Unit
+) {
+    val colors = AgentTheme.colors
+
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier
+            .background(
+                if (colors.isDark) colors.surface.copy(alpha = 0.95f)
+                else Color.White.copy(alpha = 0.95f)
+            )
+            .widthIn(min = 180.dp),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        val geminiModels = availableModels.filter {
+            it.name.lowercase().contains("gemini") || it.id.lowercase().contains("gemini")
+        }
+        val gptModels = availableModels.filter {
+            it.name.lowercase().contains("gpt") || it.id.lowercase().contains("gpt")
+        }
+        val otherModels = availableModels.filter { model ->
+            geminiModels.none { it.id == model.id } && gptModels.none { it.id == model.id }
+        }
+
+        // Gemini Group
+        if (geminiModels.isNotEmpty()) {
+            geminiModels.forEach { model ->
+                ModelMenuItem(model, selectedModelId, colors, onModelSelected, onDismissRequest)
+            }
+        }
+
+        // Divider between Gemini and others
+        if (geminiModels.isNotEmpty() && (gptModels.isNotEmpty() || otherModels.isNotEmpty())) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp, horizontal = 12.dp),
+                thickness = 0.5.dp,
+                color = colors.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+        }
+
+        // GPT Group
+        if (gptModels.isNotEmpty()) {
+            gptModels.forEach { model ->
+                ModelMenuItem(model, selectedModelId, colors, onModelSelected, onDismissRequest)
+            }
+        }
+
+        // Divider between GPT and others
+        if (gptModels.isNotEmpty() && otherModels.isNotEmpty()) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp, horizontal = 12.dp),
+                thickness = 0.5.dp,
+                color = colors.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+        }
+
+        // Other models
+        if (otherModels.isNotEmpty()) {
+            otherModels.forEach { model ->
+                ModelMenuItem(model, selectedModelId, colors, onModelSelected, onDismissRequest)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelMenuItem(
+    model: AiModel,
+    selectedModelId: String?,
+    colors: AgentColors,
+    onModelSelected: (String) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val isSelected = selectedModelId == model.id
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = model.name,
+                color = if (isSelected) Color.White else colors.onBackground,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        onClick = {
+            onModelSelected(model.id)
+            onDismissRequest()
+        },
+        modifier = Modifier
+            .padding(horizontal = 6.dp)
+            .background(
+                color = if (isSelected) colors.userBubble else Color.Transparent,
+                shape = RoundedCornerShape(20.dp)
+            ),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
+    )
+}
+
+@Composable
+fun AiChatBubble(message: AiChatMessage, isLast: Boolean = false) {
     val isUser = message.isUser
     val colors = AgentTheme.colors
     
@@ -298,11 +420,13 @@ fun AiChatBubble(message: AiChatMessage) {
             ) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = if (isUser) 8.dp else 10.dp)) {
                     if (isUser) {
-                        Text(
-                            text = message.text,
-                            color = colors.userText,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        SelectionContainer {
+                            Text(
+                                text = message.text,
+                                color = colors.userText,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     } else {
                         AiChatMarkdownView(
                             markdown = message.text,
@@ -483,7 +607,8 @@ fun AgentChatScreenPreview() {
                     selectedModelId = "gemini-3.5-flash-lite",
                     availableModels = listOf(AiModel("gemini-3.5-flash-lite", "Gemini 3.5 Flash")),
                     onBack = {},
-                    onModelSelected = {}
+                    onModelSelected = {},
+                    onInfoClick = {}
                 )
             }
         ) { padding ->

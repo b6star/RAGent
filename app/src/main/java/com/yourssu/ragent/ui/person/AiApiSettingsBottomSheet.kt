@@ -87,7 +87,12 @@ fun AiApiSettingsBottomSheet(onDismiss: () -> Unit) {
                     ProviderChip(
                         provider = option,
                         selected = provider == option,
-                        onClick = { provider = option },
+                        onClick = {
+                            provider = option
+                            apiKey = ""
+                            hasStoredKey = storage.hasStoredKey(option)
+                            errorMessage = null
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -153,7 +158,7 @@ fun AiApiSettingsBottomSheet(onDismiss: () -> Unit) {
             if (hasStoredKey) {
                 TextButton(
                     onClick = {
-                        storage.clear()
+                        storage.clear(provider)
                         apiKey = ""
                         hasStoredKey = false
                         errorMessage = null

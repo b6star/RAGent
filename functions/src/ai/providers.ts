@@ -1,17 +1,39 @@
-import Anthropic from "@anthropic-ai/sdk";
 import {GoogleGenAI} from "@google/genai";
 import OpenAI from "openai";
+import * as logger from "firebase-functions/logger";
 
-export const aiProviders = ["gemini", "openai", "anthropic"] as const;
+export const aiProviders = ["gemini", "openai"] as const;
 export type AiProvider = typeof aiProviders[number];
 
 export type AiGenerationResult = {
   text: string;
+  inputTokens: number;
+  outputTokens: number;
+  thoughtsTokens: number;
   totalTokens: number;
   modelName: string;
 };
 
 export type AiTextChunkHandler = (text: string) => Promise<void>;
+
+/** Normalized error emitted after a streaming request has started. */
+class ProviderStreamError extends Error {
+  status?: number;
+  code?: string | null;
+
+  /**
+   * Creates a normalized stream error.
+   * @param {string | null} code Provider error code
+   * @param {string} message Provider error message used only for classification
+   * @param {number} status Optional HTTP status
+   */
+  constructor(code: string | null, message: string, status?: number) {
+    super(message);
+    this.name = "ProviderStreamError";
+    this.code = code;
+    this.status = status;
+  }
+}
 
 /**
  * Returns whether a callable request contains a supported provider.
@@ -49,8 +71,6 @@ export async function streamAiResponse(
     return streamGeminiResponse(prompt, apiKey, onChunk, model, signal);
   case "openai":
     return streamOpenAiResponse(prompt, apiKey, onChunk, model, signal);
-  case "anthropic":
-    return streamAnthropicResponse(prompt, apiKey, onChunk, model, signal);
   }
 }
 
@@ -90,10 +110,27 @@ async function streamGeminiResponse(
 
   const completedText = requireText(text, "Gemini");
   const usage = lastChunk?.usageMetadata;
+  const inputTokens = usage?.promptTokenCount ?? 0;
+  const outputTokens = usage?.candidatesTokenCount ?? 0;
+  const totalTokenCount = usage?.totalTokenCount ?? 0;
+  const thoughtsTokens = usage?.thoughtsTokenCount ?? 0;
+  const totalTokens = totalTokenCount + thoughtsTokens;
+
+  logger.info("Gemini response completed", {
+    completedText,
+    inputTokens,
+    outputTokens,
+    totalTokenCount,
+    thoughtsTokens,
+    totalTokens,
+  });
 
   return {
     text: completedText,
-    totalTokens: usage?.totalTokenCount ?? 0,
+    inputTokens,
+    outputTokens,
+    thoughtsTokens,
+    totalTokens,
     modelName: lastChunk?.modelVersion ?? model,
   };
 }
@@ -115,73 +152,50 @@ async function streamOpenAiResponse(
   signal?: AbortSignal
 ): Promise<AiGenerationResult> {
   const client = new OpenAI({apiKey});
-  const stream = await client.chat.completions.create({
+  const stream = await client.responses.create({
     model: model,
-    messages: [{role: "user", content: prompt}],
+    input: prompt,
     stream: true,
   }, {signal});
 
   let text = "";
-  let usage = null;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let thoughtsTokens = 0;
+  let totalTokens = 0;
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content || "";
-    if (delta) {
+  for await (const event of stream) {
+    if (event.type === "error") {
+      throw new ProviderStreamError(event.code, event.message);
+    }
+    if (event.type === "response.failed") {
+      const responseError = event.response.error;
+      throw new ProviderStreamError(
+        responseError?.code ?? null,
+        responseError?.message ?? "OpenAI response failed"
+      );
+    }
+    if (event.type === "response.output_text.delta") {
+      const delta = event.delta;
       text += delta;
       await onChunk(delta);
     }
-    if (chunk.usage) {
-      usage = chunk.usage;
+    if (event.type === "response.completed") {
+      const usage = event.response.usage;
+      inputTokens = usage?.input_tokens ?? 0;
+      outputTokens = usage?.output_tokens ?? 0;
+      thoughtsTokens = usage?.output_tokens_details?.reasoning_tokens ?? 0;
+      totalTokens = usage?.total_tokens ?? 0;
     }
   }
 
   const completedText = requireText(text, "OpenAI");
   return {
     text: completedText,
-    totalTokens: usage?.total_tokens ?? 0,
-    modelName: model,
-  };
-}
-
-/**
- * Streams an Anthropic response through the Messages API SDK.
- * @param {string} prompt User prompt
- * @param {string} apiKey Anthropic API key
- * @param {AiTextChunkHandler} onChunk Incremental text handler
- * @param {string} model Preferred model ID
- * @param {AbortSignal} signal Client disconnect signal
- * @return {Promise<AiGenerationResult>} Normalized final response
- */
-async function streamAnthropicResponse(
-  prompt: string,
-  apiKey: string,
-  onChunk: AiTextChunkHandler,
-  model: string,
-  signal?: AbortSignal
-): Promise<AiGenerationResult> {
-  const client = new Anthropic({apiKey});
-  const stream = await client.messages.create({
-    model: model,
-    max_tokens: 4096,
-    messages: [{role: "user", content: prompt}],
-    stream: true,
-  }, {signal});
-
-  let text = "";
-  for await (const event of stream) {
-    if (
-      event.type === "content_block_delta" &&
-      event.delta.type === "text_delta"
-    ) {
-      text += event.delta.text;
-      await onChunk(event.delta.text);
-    }
-  }
-
-  const completedText = requireText(text, "Anthropic");
-  return {
-    text: completedText,
-    totalTokens: 0,
+    inputTokens,
+    outputTokens,
+    thoughtsTokens,
+    totalTokens,
     modelName: model,
   };
 }
@@ -194,6 +208,11 @@ async function streamAnthropicResponse(
  */
 function requireText(value: string | undefined, providerName: string): string {
   const text = value?.trim();
-  if (!text) throw new Error(`${providerName} returned an empty response`);
+  if (!text) {
+    throw new ProviderStreamError(
+      "empty_response",
+      `${providerName} returned an empty response`
+    );
+  }
   return text;
 }

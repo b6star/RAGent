@@ -15,6 +15,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -98,12 +99,25 @@ fun AiChatMarkdownView(
                     }
                     is MarkdownBlock.Code -> {
                         val isMermaid = block.language == "mermaid"
+                        val completedCodeRenderKey = remember(block.value, block.language) {
+                            listOf(block.value, block.language).hashCode().let { hash ->
+                                if (hash == 0) 1 else hash
+                            }
+                        }
                         CodeWebView(
                             code = block.value,
                             declaredLanguage = block.language,
                             mermaid = isMermaid && !isStreaming,
-                            renderKey = if (isStreaming) 0 else markdown.hashCode(),
+                            renderKey = completedCodeRenderKey,
                             onAskAi = onAskAi
+                        )
+                    }
+                    is MarkdownBlock.PendingCode -> {
+                        Text(
+                            text = block.value,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                            color = textColor,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                     MarkdownBlock.Spacer -> Spacer(modifier = Modifier.height(12.dp))
@@ -137,27 +151,50 @@ fun AiChatMarkdownView(
 @Composable
 private fun MarkdownTableView(table: MarkdownBlock.Table, colors: AgentColors) {
     val scrollState = rememberScrollState()
+    val columnCount = table.headers.size
+
     Surface(
         modifier = Modifier
-            .wrapContentWidth()
             .padding(vertical = 8.dp),
         color = colors.background.copy(alpha = 0.5f),
         shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.onBackground.copy(alpha = 0.1f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.onBackground.copy(alpha = 0.2f))
     ) {
-        Column(modifier = Modifier.horizontalScroll(scrollState)) {
+        Column(
+            modifier = Modifier
+                .horizontalScroll(scrollState)
+        ) {
             // Headers
-            Row(modifier = Modifier.background(colors.onBackground.copy(alpha = 0.05f))) {
-                table.headers.forEach { header ->
+            Row(
+                modifier = Modifier
+                    .background(colors.onBackground.copy(alpha = 0.05f))
+                    .height(IntrinsicSize.Min)
+            ) {
+                table.headers.forEachIndexed { index, header ->
                     TableCell(text = header, isHeader = true, colors = colors)
+                    if (index < columnCount - 1) {
+                        VerticalDivider(
+                            modifier = Modifier.fillMaxHeight(),
+                            thickness = 1.dp,
+                            color = colors.onBackground.copy(alpha = 0.2f)
+                        )
+                    }
                 }
             }
             // Rows
             table.rows.forEach { row ->
-                HorizontalDivider(color = colors.onBackground.copy(alpha = 0.05f))
-                Row {
-                    row.forEach { cell ->
-                        TableCell(text = cell, isHeader = false, colors = colors)
+                HorizontalDivider(color = colors.onBackground.copy(alpha = 0.2f))
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    for (index in 0 until columnCount) {
+                        val cellText = row.getOrNull(index) ?: ""
+                        TableCell(text = cellText, isHeader = false, colors = colors)
+                        if (index < columnCount - 1) {
+                            VerticalDivider(
+                                modifier = Modifier.fillMaxHeight(),
+                                thickness = 1.dp,
+                                color = colors.onBackground.copy(alpha = 0.2f)
+                            )
+                        }
                     }
                 }
             }
@@ -176,8 +213,8 @@ private fun TableCell(text: String, isHeader: Boolean, colors: AgentColors) {
 
     Box(
         modifier = Modifier
+            .width(180.dp) // 정렬을 위해 모든 셀에 충분한 고정 너비 할당
             .padding(horizontal = 12.dp, vertical = 10.dp)
-            .widthIn(min = 80.dp, max = 240.dp)
     ) {
         ClickableText(
             text = annotatedText,
@@ -198,6 +235,7 @@ private fun TableCell(text: String, isHeader: Boolean, colors: AgentColors) {
 sealed interface MarkdownBlock {
     data class Text(val value: String) : MarkdownBlock
     data class Code(val value: String, val language: String) : MarkdownBlock
+    data class PendingCode(val value: String) : MarkdownBlock
     data object Spacer : MarkdownBlock
     data object Divider : MarkdownBlock
     data class Table(val headers: List<String>, val rows: List<List<String>>) : MarkdownBlock
@@ -293,7 +331,7 @@ fun parseMarkdownBlocks(markdown: String): List<MarkdownBlock> {
 
     flushTable()
     if (codeBuffer != null) {
-        result += MarkdownBlock.Code(codeBuffer.toString().trimEnd(), language)
+        result += MarkdownBlock.PendingCode(codeBuffer.toString().trimEnd())
     } else {
         flushText()
     }
@@ -311,7 +349,9 @@ fun markdownText(
     showDetails: String
 ): AnnotatedString = buildAnnotatedString {
     var detailIndex = 0
-    val lines = value.lines()
+    // <br>, <br/> 태그를 실제 줄바꿈(\n)으로 치환
+    val processedValue = value.replace(Regex("(?i)<br\\s*/?>"), "\n")
+    val lines = processedValue.lines()
 
     lines.forEachIndexed { index, line ->
         var currentLine = line

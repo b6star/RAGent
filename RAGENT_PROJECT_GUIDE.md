@@ -7,11 +7,21 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 핵심 원칙:
 
 - GitHub와 Notion은 공개 링크 연결을 우선한다.
-- Android 앱은 화면과 사용자 요청을 담당한다.
+- Android 앱은 화면, 사용자 요청과 개인 API 키 Provider 직접 호출을 담당한다.
 - Firebase는 인증, 협업 데이터와 서버 AI 실행을 담당한다.
 - 프로젝트 지식과 Vector는 참여자가 Firebase에서 공유한다.
 - GitHub API, Notion API와 Webhook은 선택 기능으로 둔다.
-- Local LLM과 다른 AI Provider는 현재 범위에 포함하지 않는다.
+- Gemini와 OpenAI만 지원하며 Local LLM은 현재 범위에 포함하지 않는다.
+
+### 하드코딩 금지 — 모든 구현에서 반드시 준수
+
+작성: 2026-08-29 06:13 KST
+
+- 수치, 제한값, 모델명, Provider 설정 등 개발자가 변경할 수 있는 값은 하드코딩하지 않는다.
+- 변경 가능한 값은 전체 프로젝트에서 단 하나의 설정 원본(Single Source of Truth)에만 선언한다.
+- Android, Cloud Functions, UI 문구와 검증 로직은 설정 원본을 참조해서 사용하며 같은 값을 다른 파일에 중복 작성하지 않는다.
+- 사용자 안내 문구에 변경 가능한 수치나 모델명을 직접 적지 않는다. 표시가 필요하면 설정 원본의 값을 읽어 동적으로 구성한다.
+- 새 기능을 구현하거나 기존 코드를 수정할 때 중복 상수가 발견되면 공통 설정으로 이동한 뒤 참조하도록 정리한다.
 
 ## 2. 현재 구현 상태
 
@@ -39,8 +49,8 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 
 ### Phase 3 - AI 연동 및 고도화 (진행 중)
 
-- Firebase Cloud Functions (TypeScript) 기반 `askGemini` Endpoint 구축
-- 하이브리드 데이터 흐름: 메시지 저장은 안드로이드 앱에서 직접 Firestore 수행, AI 호출은 서버에서 처리
+- Firebase Cloud Functions (TypeScript) 기반 `askAi` Endpoint 구축
+- 하이브리드 데이터 흐름: 개인 키는 Android 직접 호출, 개발자 키는 Cloud Function 호출
 - iOS 스타일 글래스모피즘 입력창 및 현대적인 채팅 UI 적용
 - 프로젝트별 다중 대화 세션 목록화 및 독립된 채팅 화면 (`AgentChatScreen`)
 - 마크다운 렌더링 지원 및 AI 응답 메타데이터 표시
@@ -50,7 +60,8 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 
 | 경로 | 용도 |
 | --- | --- |
-| `users/{uid}` | 로그인 사용자 프로필 및 `totalAiTokens` 누적 통계 |
+| `users/{uid}` | 사용자 프로필, 누적 input/output/thoughts/total token과 키 출처별 호출 횟수 |
+| `users/{uid}/ai_usage/{usageId}` | 요청별 Provider, 모델, 키 출처와 토큰 사용량 |
 | `users/{uid}/ai_chats/{projectId}/sessions/{sessionId}` | 프로젝트별 AI 채팅 세션 정보 |
 | `users/{uid}/ai_chats/{projectId}/sessions/{sessionId}/messages/{messageId}` | 개별 대화 내역 (하이브리드 저장) |
 | `projects/{projectId}` | 프로젝트 공용 정보와 연결 URL |
@@ -65,13 +76,15 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 대화 내역 직접 저장 (실시간성 확보)
 - 프로젝트 생성 및 관리 UI
 - Agent 질문 전송과 답변 표시 (Glassmorphism UI)
+- Provider별 개인 API 키 암호화 저장과 Gemini·OpenAI 직접 스트리밍 호출
 
 ### Firebase 서버
 
 - 사용자 인증 및 보안 규칙 검증
-- Gemini 요청의 비밀키 보호
-- **멀티 프로바이더 엔진 (준비 중)**
-- **사용자별 무료 체험 제한 및 토큰 집계**
+- Gemini 개발자 키 보호와 `askAi` 스트리밍
+- 개인·개발자 키 사용량 서버 집계
+- 개발자 키 계정당 무료 500,000 토큰 제한
+- 저비용 모델만 선택 가능: Gemini `gemini-3.5-flash-lite`, OpenAI `gpt-5.6-luna`
 
 ## 5. Phase 3 - AI 연동 및 고도화 상세 스텝
 
@@ -80,17 +93,87 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 ### 스텝 1: UI 고도화 및 기초 연동 (완료)
 - `AgentTab` 세션 목록화 및 `AgentChatScreen` 독립
 - 글래스모피즘 입력창 및 가변 메시지 버블 구현
-- `askGemini` 서버 호출 및 기초 메시지 저장 로직 완성
+- `askAi` 서버 호출 및 기초 메시지 저장 로직 완성
 
-### 스텝 2: Backend - 멀티 AI 허브 및 사용량 제한 (예정)
-- OpenAI(GPT), Anthropic(Claude) SDK 통합
-- 개발자 키 사용 시 계정당 무료 10회 제한 로직 (Firestore 필드 기반)
-- 유저 개인 API 키 파라미터 처리 엔진 구현
+### 스텝 2: 멀티 AI 허브 및 사용량 제한 (완료)
+- Gemini·OpenAI Provider 및 Responses API 스트리밍 통합
+- Provider별 개인 API 키 Android Keystore 암호화 저장
+- 개인 키 Android 직접 호출과 개발자 키 Cloud Function 호출 분리
+- 개인·개발자 키 사용량 Firestore 서버 집계
+- 개발자 키 계정당 무료 500,000 토큰 제한 (`developerAiTotalTokens` 기준)
+- Gemini `gemini-3.5-flash-lite`, OpenAI `gpt-5.6-luna`만 선택 가능
+- OpenAI 실제 API 키 테스트는 키 확보 시 진행
 
-### 스텝 3: Android - AI 설정 및 상세 통계 (예정)
-- AI 설정 UI: 프로바이더 선택 및 개인 API 키 입력 필드
+### 스텝 3: Android - 상세 통계 및 오류 UX (진행 중)
 - 세션별 누적 토큰 및 유저 전체 통계 실시간 UI 반영
-- 에러 처리 가이드 및 로딩 상태 정교화
+- Provider·개인 키·개발자 키·네트워크·사용량 저장 오류 분류 및 안전한 사용자 안내 완료 (2026-08-29 06:13 KST)
+- 로딩 상태 정교화 예정
+
+## 5-1. AgentScreen IME 동반 이동 최종 주의사항
+
+최종 수정: 2026-08-28 22:44 KST
+대상 파일: `app/src/main/java/com/yourssu/ragent/ui/agent/AgentScreen.kt`
+
+### 최종 원인
+
+- `imePadding()`은 IME 높이만큼 부모와 `LazyColumn` viewport를 줄이지만, 일반 방향 `LazyColumn`에서 현재 보이는 메시지의 Y 위치까지 자동으로 올려주지는 않는다.
+- 따라서 `imePadding()`만 남기면 입력창은 올라가도 메시지는 기존 Y 위치에 남아 화면이 움직이지 않는 것처럼 보인다.
+- `requestScrollToItem(lastContentIndex)`를 사용하면 움직이지만, 사용자가 보고 있던 위치를 버리고 마지막 메시지로 강제 이동하므로 요구사항과 다르다.
+
+### 최종 해결 방식 — 반드시 보존
+
+키보드가 열리기 직전의 `firstVisibleItemIndex`와 `firstVisibleItemScrollOffset`을 anchor로 저장한다. IME가 움직이는 동안에는 특정 메시지를 선택하지 않고, 저장한 offset에 현재 `imeBottom`만 더해 현재 화면이 키보드와 같은 거리로 이동하도록 한다.
+
+```kotlin
+// app/src/main/java/com/yourssu/ragent/ui/agent/AgentScreen.kt
+@Composable
+fun AgentChatScreen(/* existing parameters */) {
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    var previousImeBottom by remember(sessionId) { mutableIntStateOf(imeBottom) }
+    var imeAnchorIndex by remember(sessionId) { mutableIntStateOf(0) }
+    var imeAnchorOffset by remember(sessionId) { mutableIntStateOf(0) }
+    var hasImeAnchor by remember(sessionId) { mutableStateOf(false) }
+
+    SideEffect {
+        val capturedNow = imeBottom > 0 && !hasImeAnchor &&
+            listState.layoutInfo.totalItemsCount > 0
+
+        if (capturedNow) {
+            imeAnchorIndex = listState.firstVisibleItemIndex
+            imeAnchorOffset = listState.firstVisibleItemScrollOffset
+            hasImeAnchor = true
+        }
+
+        if (hasImeAnchor && (capturedNow || imeBottom != previousImeBottom)) {
+            listState.requestScrollToItem(
+                index = imeAnchorIndex,
+                scrollOffset = imeAnchorOffset + imeBottom
+            )
+        }
+
+        if (imeBottom == 0) hasImeAnchor = false
+        previousImeBottom = imeBottom
+    }
+}
+```
+
+실제 기기 `SM-X820 / Android 16` 확인 결과, IME와 입력창이 `871px` 올라갈 때 동일 메시지도 정확히 `871px` 올라갔다.
+
+### 절대 변경 금지
+
+- 위 anchor 기반 IME 로직을 삭제하거나 `requestScrollToItem(lastContentIndex)`로 바꾸지 않는다.
+- IME 표시 시 `animateScrollToItem()` 또는 `delay()`를 사용하지 않는다.
+- `reverseLayout` 또는 `messages.asReversed()`를 적용해 기존 메시지 순서와 첫 메시지 상단 배치를 바꾸지 않는다.
+- `AgentScreen.kt`의 다른 UI를 함께 수정하지 않는다.
+- `AgentChatHeader`와 `ChatInputArea`의 색상, 투명도, 테두리, 그림자, 모양, padding을 변경하지 않는다.
+- 공통 Theme, 색상 정의, Gradle, Manifest 및 다른 화면 파일을 키보드 문제와 함께 수정하지 않는다.
+
+### 수정 전 필수 확인
+
+- 정상 참고 구현: `C:\Users\baejunsung\AndroidStudioProjects\AgentChatUISample\app\src\main\java\com\b6star\chatui\ui\AgentScreen.kt`
+- 수정 전후 `git diff -- AgentScreen.kt`로 IME 관련 코드 외 변경이 없는지 확인한다.
+- `./gradlew.bat :app:compileDebugKotlin`을 실행하고 실제 기기에서 현재 스크롤 위치 기준 동반 이동을 확인한다.
+- 실제 기기 확인 전에는 해결 완료로 기록하지 않는다.
 
 ## 6. 이후 개발 순서
 
@@ -109,5 +192,5 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 ## 10. 현재 작업 위치
 
 - 완료: Phase 1, Phase 2
-- 진행 중: **Phase 3 / 스텝 2 시작 예정**
-- 특징: 하이브리드 저장 방식 적용 완료, UI 리뉴얼 완료
+- 완료: **Phase 3 / 스텝 1, 스텝 2**
+- 다음 작업: **Phase 3 / 스텝 3 사용량 통계 및 오류 UX**

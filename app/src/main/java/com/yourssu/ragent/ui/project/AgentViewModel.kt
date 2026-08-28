@@ -12,6 +12,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
@@ -20,7 +21,16 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.StreamResponse
 import com.google.firebase.functions.functions
 import com.yourssu.ragent.data.local.AiApiKeyStorage
+import com.yourssu.ragent.data.remote.AiErrorMapper
+import com.yourssu.ragent.data.remote.AiErrorReason
+import com.yourssu.ragent.data.remote.AiRequestException
+import com.yourssu.ragent.data.remote.DirectAiClient
 import com.yourssu.ragent.model.AiApiProvider
+import com.yourssu.ragent.model.AiUsageDashboard
+import com.yourssu.ragent.model.AiUsageRecord
+import com.yourssu.ragent.model.toAiUsageDashboard
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.tasks.await
@@ -41,7 +51,11 @@ data class AiChatMessage(
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
     val modelName: String? = null,
+    val inputTokens: Int? = null,
+    val outputTokens: Int? = null,
+    val thoughtsTokens: Int? = null,
     val totalTokens: Int? = null,
+    val keySource: String? = null,
     val responseTimeMs: Long? = null
 )
 
@@ -49,6 +63,7 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
     private val functions = Firebase.functions("asia-northeast3")
+    private val directAiClient = DirectAiClient()
     val aiApiKeyStorage = AiApiKeyStorage(application)
 
     private val _sessions = mutableStateListOf<AiChatSession>()
@@ -58,6 +73,10 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionListeners = mutableMapOf<String, ListenerRegistration>()
     private val messageListeners = mutableMapOf<String, ListenerRegistration>()
     private val streamingDrafts = mutableMapOf<String, AiChatMessage>()
+    private var usageListener: ListenerRegistration? = null
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        observeAiUsage(firebaseAuth.currentUser?.uid)
+    }
     
     var isLoading by mutableStateOf(false)
         private set
@@ -70,8 +89,48 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     var selectedModelId by mutableStateOf<String?>(null)
         private set
 
+    var usageDashboard by mutableStateOf(AiUsageDashboard())
+        private set
+
     init {
         selectedModelId = aiApiKeyStorage.getState().selectedModelId
+        auth.addAuthStateListener(authStateListener)
+    }
+
+    private fun observeAiUsage(uid: String?) {
+        usageListener?.remove()
+        usageListener = null
+
+        if (uid == null) {
+            usageDashboard = AiUsageDashboard()
+            return
+        }
+
+        usageListener = db.collection("users").document(uid)
+            .collection("ai_usage")
+            .addSnapshotListener { snapshot, listenerError ->
+                if (listenerError != null) {
+                    Log.e("AgentVM", "AI usage listener error", listenerError)
+                    return@addSnapshotListener
+                }
+
+                val records = snapshot?.documents.orEmpty().map { document ->
+                    AiUsageRecord(
+                        modelName = document.getString("modelName") ?: "Unknown model",
+                        keySource = document.getString("keySource") ?: "unknown",
+                        inputTokens = document.getLong("inputTokens") ?: 0,
+                        outputTokens = document.getLong("outputTokens") ?: 0,
+                        thoughtsTokens = document.getLong("thoughtsTokens") ?: 0,
+                        totalTokens = document.getLong("totalTokens") ?: 0,
+                        projectId = document.getString("projectId"),
+                        projectName = document.getString("projectName"),
+                        sessionId = document.getString("sessionId"),
+                        sessionTitle = document.getString("sessionTitle"),
+                        createdAt = document.getTimestamp("createdAt")?.toDate()?.time ?: 0
+                    )
+                }
+                usageDashboard = records.toAiUsageDashboard()
+            }
     }
 
     fun updateSelectedModel(modelId: String) {
@@ -153,7 +212,11 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                             isUser = doc.getBoolean("isUser") ?: true,
                             timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L,
                             modelName = doc.getString("modelName"),
+                            inputTokens = doc.getLong("inputTokens")?.toInt(),
+                            outputTokens = doc.getLong("outputTokens")?.toInt(),
+                            thoughtsTokens = doc.getLong("thoughtsTokens")?.toInt(),
                             totalTokens = doc.getLong("totalTokens")?.toInt(),
+                            keySource = doc.getString("keySource"),
                             responseTimeMs = doc.getLong("responseTimeMs")
                         )
                     }
@@ -267,17 +330,9 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
             error = null
             try {
                 val apiSettings = aiApiKeyStorage.getState()
-                if (
-                    apiSettings.provider != AiApiProvider.Gemini &&
-                    !apiSettings.hasStoredKey
-                ) {
-                    error = "${apiSettings.provider.displayName} 개인 API 키를 먼저 설정해 주세요."
-                    return@launch
-                }
-
                 val personalApiKey = if (apiSettings.hasStoredKey) {
-                    aiApiKeyStorage.readApiKey()
-                        ?: throw IllegalStateException("저장된 API 키를 읽지 못했습니다.")
+                    aiApiKeyStorage.readApiKey(apiSettings.provider)
+                        ?: throw AiRequestException(AiErrorReason.API_KEY_INVALID)
                 } else {
                     null
                 }
@@ -298,13 +353,12 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     sessionRef.update("title", autoTitle).await()
                 }
 
-                // 3. Cloud Functions 호출
-                val requestData = hashMapOf<String, Any>(
-                    "prompt" to prompt,
-                    "provider" to apiSettings.provider.requestValue,
-                    "model" to (selectedModelId ?: apiSettings.selectedModelId)
-                ).apply {
-                    if (personalApiKey != null) put("apiKey", personalApiKey)
+                // 3. 개인 키는 Android에서 직접 호출하고, 없으면 개발자 키를 Cloud Function에서 사용
+                val model = if (personalApiKey != null) {
+                    selectedModelId ?: apiSettings.selectedModelId
+                } else {
+                    // 개발자 키는 Cloud Function의 provider별 첫 번째 모델만 사용한다.
+                    apiSettings.provider.defaultModelId
                 }
                 val assistantMessageRef = sessionRef.collection("messages").document()
                 val responseStartedAt = System.currentTimeMillis()
@@ -317,41 +371,121 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 updateStreamingDraft(sessionId) { it }
 
-                var finalResult: Map<*, *>? = null
-                functions.getHttpsCallable("askGemini")
-                    .stream(requestData)
-                    .asFlow()
-                    .collect { streamResponse ->
-                        when (streamResponse) {
-                            is StreamResponse.Message -> {
-                                val chunk = streamResponse.message.data as? Map<*, *>
-                                if (chunk?.get("type") == "text-delta") {
-                                    val delta = chunk["delta"] as? String ?: ""
-                                    if (delta.isNotEmpty()) {
-                                        updateStreamingDraft(sessionId) { draft ->
-                                            draft.copy(text = draft.text + delta)
+                var answer: String
+                var inputTokens: Int
+                var outputTokens: Int
+                var thoughtsTokens: Int
+                var tokens: Int
+                var modelName: String?
+                val keySource: String
+                var usageSyncWarning: String? = null
+
+                if (personalApiKey != null) {
+                    val result = directAiClient.stream(
+                        provider = apiSettings.provider,
+                        prompt = prompt,
+                        apiKey = personalApiKey,
+                        model = model
+                    ) { delta ->
+                        updateStreamingDraft(sessionId) { draft ->
+                            draft.copy(text = draft.text + delta)
+                        }
+                    }
+                    answer = result.text
+                    inputTokens = result.inputTokens
+                    outputTokens = result.outputTokens
+                    thoughtsTokens = result.thoughtsTokens
+                    tokens = result.totalTokens
+                    modelName = result.modelName
+                    keySource = "personal"
+
+                    val usageData = hashMapOf<String, Any>(
+                        "usageId" to assistantMessageRef.id,
+                        "provider" to apiSettings.provider.requestValue,
+                        "modelName" to result.modelName,
+                        "inputTokens" to result.inputTokens,
+                        "outputTokens" to result.outputTokens,
+                        "thoughtsTokens" to result.thoughtsTokens,
+                        "totalTokens" to result.totalTokens,
+                        "projectId" to projectId,
+                        "sessionId" to sessionId
+                    )
+                    runCatching {
+                        recordPersonalAiUsageWithRetry(usageData)
+                    }.onFailure { usageError ->
+                        val mappedError = AiErrorMapper.fromThrowable(usageError)
+                        Log.e(
+                            TAG,
+                            "Personal usage sync failed: reason=${mappedError.reason}, " +
+                                "retryable=${mappedError.retryable}, " +
+                                "type=${usageError.javaClass.simpleName}"
+                        )
+                        usageSyncWarning =
+                            "답변은 저장됐지만 사용량 통계는 서버에 반영되지 않았습니다. " +
+                            mappedError.message
+                    }
+                } else {
+                    val requestData = hashMapOf<String, Any>(
+                        "prompt" to prompt,
+                        "provider" to apiSettings.provider.requestValue,
+                        "model" to model,
+                        "usageId" to assistantMessageRef.id,
+                        "projectId" to projectId,
+                        "sessionId" to sessionId
+                    )
+                    var finalResult: Map<*, *>? = null
+                    functions.getHttpsCallable("askAi")
+                        .stream(requestData)
+                        .asFlow()
+                        .collect { streamResponse ->
+                            when (streamResponse) {
+                                is StreamResponse.Message -> {
+                                    val chunk = streamResponse.message.data as? Map<*, *>
+                                    if (chunk?.get("type") == "error") {
+                                        val reason = chunk["reason"] as? String
+                                        if (reason == "developer_token_limit") {
+                                            throw AiRequestException(
+                                                AiErrorReason.DEVELOPER_TOKEN_LIMIT
+                                            )
+                                        }
+                                    } else if (chunk?.get("type") == "text-delta") {
+                                        val delta = chunk["delta"] as? String ?: ""
+                                        if (delta.isNotEmpty()) {
+                                            updateStreamingDraft(sessionId) { draft ->
+                                                draft.copy(text = draft.text + delta)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            is StreamResponse.Result -> {
-                                finalResult = streamResponse.result.data as? Map<*, *>
+                                is StreamResponse.Result -> {
+                                    finalResult = streamResponse.result.data as? Map<*, *>
+                                }
                             }
                         }
-                    }
 
-                val resData = finalResult
-                    ?: throw IllegalStateException("AI 최종 응답을 받지 못했습니다.")
-                val answer = resData["text"] as? String ?: ""
-                val tokens = (resData["totalTokens"] as? Number)?.toInt() ?: 0
-                val modelName = resData["modelName"] as? String
+                    val resData = finalResult
+                        ?: throw AiRequestException(AiErrorReason.EMPTY_RESPONSE)
+                    answer = (resData["text"] as? String)
+                        ?.takeIf(String::isNotBlank)
+                        ?: throw AiRequestException(AiErrorReason.EMPTY_RESPONSE)
+                    inputTokens = (resData["inputTokens"] as? Number)?.toInt() ?: 0
+                    outputTokens = (resData["outputTokens"] as? Number)?.toInt() ?: 0
+                    thoughtsTokens = (resData["thoughtsTokens"] as? Number)?.toInt() ?: 0
+                    tokens = (resData["totalTokens"] as? Number)?.toInt() ?: 0
+                    modelName = resData["modelName"] as? String
+                    keySource = "developer"
+                }
                 val responseTimeMs = System.currentTimeMillis() - responseStartedAt
 
                 updateStreamingDraft(sessionId) { draft ->
                     draft.copy(
                         text = answer,
                         modelName = modelName,
+                        inputTokens = inputTokens,
+                        outputTokens = outputTokens,
+                        thoughtsTokens = thoughtsTokens,
                         totalTokens = tokens,
+                        keySource = keySource,
                         responseTimeMs = responseTimeMs
                     )
                 }
@@ -362,7 +496,11 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     "isUser" to false,
                     "timestamp" to FieldValue.serverTimestamp(),
                     "modelName" to modelName,
+                    "inputTokens" to inputTokens,
+                    "outputTokens" to outputTokens,
+                    "thoughtsTokens" to thoughtsTokens,
                     "totalTokens" to tokens,
+                    "keySource" to keySource,
                     "responseTimeMs" to responseTimeMs
                 )).await()
                 streamingDrafts.remove(sessionId)
@@ -374,14 +512,45 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     "sessionTotalTokens" to FieldValue.increment(tokens.toLong())
                 )).await()
 
+                error = usageSyncWarning
+
+            } catch (e: CancellationException) {
+                removeStreamingDraft(sessionId)
+                throw e
             } catch (e: Exception) {
                 removeStreamingDraft(sessionId)
-                Log.e("AgentViewModel", "AI Error", e)
-                error = "오류 발생: ${e.localizedMessage ?: "알 수 없는 에러"}"
+                val mappedError = AiErrorMapper.fromThrowable(e)
+                Log.e(
+                    TAG,
+                    "AI request failed: reason=${mappedError.reason}, " +
+                        "retryable=${mappedError.retryable}, " +
+                        "type=${e.javaClass.simpleName}"
+                )
+                error = mappedError.message
             } finally {
                 isLoading = false
             }
         }
+    }
+
+    private suspend fun recordPersonalAiUsageWithRetry(data: HashMap<String, Any>) {
+        var lastError: Throwable? = null
+        repeat(PERSONAL_USAGE_SYNC_ATTEMPTS) { attempt ->
+            try {
+                functions.getHttpsCallable("recordPersonalAiUsage")
+                    .call(data)
+                    .await()
+                return
+            } catch (error: Exception) {
+                lastError = error
+                val mappedError = AiErrorMapper.fromThrowable(error)
+                if (!mappedError.retryable || attempt == PERSONAL_USAGE_SYNC_ATTEMPTS - 1) {
+                    throw error
+                }
+                delay(PERSONAL_USAGE_RETRY_BASE_DELAY_MS * (attempt + 1))
+            }
+        }
+        throw lastError ?: IllegalStateException("Personal usage sync failed")
     }
 
     private fun updateStreamingDraft(
@@ -406,10 +575,18 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        auth.removeAuthStateListener(authStateListener)
+        usageListener?.remove()
         sessionListeners.values.forEach(ListenerRegistration::remove)
         messageListeners.values.forEach(ListenerRegistration::remove)
         sessionListeners.clear()
         messageListeners.clear()
         super.onCleared()
+    }
+
+    private companion object {
+        const val TAG = "AgentViewModel"
+        const val PERSONAL_USAGE_SYNC_ATTEMPTS = 3
+        const val PERSONAL_USAGE_RETRY_BASE_DELAY_MS = 500L
     }
 }

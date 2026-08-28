@@ -38,8 +38,39 @@ service cloud.firestore {
         && invite(projectId, inviteId).data.role in ['Member', 'Viewer'];
     }
 
+    function hasNoServerManagedAiChanges() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'totalAiInputTokens',
+        'totalAiOutputTokens',
+        'totalAiThoughtsTokens',
+        'totalAiTokens',
+        'personalAiUsageCount',
+        'developerAiUsageCount',
+        'developerAiTotalTokens',
+        'lastAiUsageAt'
+      ]);
+    }
+
     match /users/{userId} {
-      allow read, write: if isUser(userId);
+      allow read: if isUser(userId);
+      allow create: if isUser(userId)
+        && !request.resource.data.keys().hasAny([
+          'totalAiInputTokens',
+          'totalAiOutputTokens',
+          'totalAiThoughtsTokens',
+          'totalAiTokens',
+          'personalAiUsageCount',
+          'developerAiUsageCount',
+          'developerAiTotalTokens',
+          'lastAiUsageAt'
+        ]);
+      allow update: if isUser(userId) && hasNoServerManagedAiChanges();
+      allow delete: if false;
+    }
+
+    match /users/{userId}/ai_usage/{usageId} {
+      allow read: if isUser(userId);
+      allow write: if false;
     }
 
     match /projects/{projectId} {

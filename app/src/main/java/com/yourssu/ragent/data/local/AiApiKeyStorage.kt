@@ -29,26 +29,47 @@ class AiApiKeyStorage(context: Context) {
             ?.let { saved -> AiApiProvider.entries.firstOrNull { it.name == saved } }
             ?: AiApiProvider.Gemini
 
-        val selectedModelId = preferences.getString(ModelKey, null)
+        val savedModelId = preferences.getString(ModelKey, null)
+        val selectedModelId = provider.models
+            .firstOrNull { it.id == savedModelId }
+            ?.id
             ?: provider.defaultModelId
+
+        if (savedModelId != selectedModelId) {
+            preferences.edit().putString(ModelKey, selectedModelId).apply()
+        }
 
         return AiApiKeyState(
             provider = provider,
             selectedModelId = selectedModelId,
-            hasStoredKey = preferences.contains(EncryptedKey) &&
-                preferences.contains(InitializationVectorKey) &&
-                androidKeyStore().containsAlias(KeyAlias)
+            hasStoredKey = hasStoredKey(provider)
         )
     }
 
+    fun hasStoredKey(provider: AiApiProvider): Boolean {
+        val suffix = provider.requestValue
+        val hasCurrentKey = preferences.contains(encryptedKey(suffix)) &&
+            preferences.contains(initializationVectorKey(suffix))
+        val hasLegacyKey = legacyValue(EncryptedKey, provider) != null &&
+            legacyValue(InitializationVectorKey, provider) != null
+        return (hasCurrentKey || hasLegacyKey) &&
+            androidKeyStore().containsAlias(KeyAlias)
+    }
+
     fun updateModel(modelId: String) {
-        preferences.edit().putString(ModelKey, modelId).apply()
+        val provider = getState().provider
+        val safeModelId = provider.models
+            .firstOrNull { it.id == modelId }
+            ?.id
+            ?: provider.defaultModelId
+        preferences.edit().putString(ModelKey, safeModelId).apply()
     }
 
     @Throws(Exception::class)
     fun save(provider: AiApiProvider, apiKey: String) {
         require(apiKey.isNotBlank()) { "API 키를 입력해 주세요." }
 
+        val suffix = provider.requestValue
         val cipher = Cipher.getInstance(CipherTransformation)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
         val encrypted = cipher.doFinal(apiKey.trim().toByteArray(StandardCharsets.UTF_8))
@@ -56,8 +77,8 @@ class AiApiKeyStorage(context: Context) {
         val saved = preferences.edit()
             .putString(ProviderKey, provider.name)
             .putString(ModelKey, provider.defaultModelId)
-            .putString(InitializationVectorKey, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-            .putString(EncryptedKey, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+            .putString(initializationVectorKey(suffix), Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+            .putString(encryptedKey(suffix), Base64.encodeToString(encrypted, Base64.NO_WRAP))
             .commit()
 
         if (!saved) throw IOException("API 키 설정을 기기에 저장하지 못했습니다.")
@@ -65,10 +86,17 @@ class AiApiKeyStorage(context: Context) {
 
     /** SDK 연동 시에만 호출하고 반환값을 로그에 남기지 않는다. */
     @Throws(Exception::class)
-    fun readApiKey(): String? {
-        val initializationVector = preferences.getString(InitializationVectorKey, null)
+    fun readApiKey(provider: AiApiProvider): String? {
+        val suffix = provider.requestValue
+        val initializationVector = preferences.getString(
+            initializationVectorKey(suffix),
+            legacyValue(InitializationVectorKey, provider)
+        )
             ?: return null
-        val encrypted = preferences.getString(EncryptedKey, null) ?: return null
+        val encrypted = preferences.getString(
+            encryptedKey(suffix),
+            legacyValue(EncryptedKey, provider)
+        ) ?: return null
 
         val secretKey = androidKeyStore().getKey(KeyAlias, null) as? SecretKey ?: return null
         val cipher = Cipher.getInstance(CipherTransformation)
@@ -83,9 +111,36 @@ class AiApiKeyStorage(context: Context) {
         )
     }
 
+    fun clear(provider: AiApiProvider) {
+        val suffix = provider.requestValue
+        preferences.edit()
+            .remove(encryptedKey(suffix))
+            .remove(initializationVectorKey(suffix))
+            .apply {
+                if (preferences.getString(ProviderKey, null) == provider.name) {
+                    remove(ProviderKey).remove(ModelKey)
+                    remove(EncryptedKey).remove(InitializationVectorKey)
+                }
+            }
+            .commit()
+    }
+
     fun clear() {
         preferences.edit().clear().commit()
     }
+
+    private fun legacyValue(key: String, provider: AiApiProvider): String? {
+        return if (preferences.getString(ProviderKey, null) == provider.name) {
+            preferences.getString(key, null)
+        } else {
+            null
+        }
+    }
+
+    private fun encryptedKey(provider: String): String = "${EncryptedKey}_$provider"
+
+    private fun initializationVectorKey(provider: String): String =
+        "${InitializationVectorKey}_$provider"
 
     private fun getOrCreateSecretKey(): SecretKey {
         val keyStore = androidKeyStore()

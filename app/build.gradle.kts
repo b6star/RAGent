@@ -70,6 +70,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactive:1.10.2")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Coil for image loading
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
