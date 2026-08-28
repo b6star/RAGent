@@ -1,0 +1,119 @@
+[debug] [2026-08-28T22:30:15.278Z] ----------------------------------------------------------------------
+[debug] [2026-08-28T22:30:15.280Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\baejunsung\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:askAi
+[debug] [2026-08-28T22:30:15.280Z] CLI Version:   15.28.1
+[debug] [2026-08-28T22:30:15.280Z] Platform:      win32
+[debug] [2026-08-28T22:30:15.280Z] Node Version:  v24.18.0
+[debug] [2026-08-28T22:30:15.280Z] Detected Agent: unknown
+[debug] [2026-08-28T22:30:15.280Z] Time:          Sat Aug 29 2026 07:30:15 GMT+0900 (한국 표준시)
+[debug] [2026-08-28T22:30:15.280Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-28T22:30:16.095Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-28T22:30:16.096Z] > authorizing via signed-in user (baejunsung1225@gmail.com)
+[debug] [2026-08-28T22:30:16.096Z] [iam] checking project ragent-d6b01 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-08-28T22:30:16.103Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:16.104Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:16.104Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions [none]
+[debug] [2026-08-28T22:30:16.104Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions  x-goog-user-project=ragent-d6b01
+[debug] [2026-08-28T22:30:16.104Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-08-28T22:30:16.344Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions 200
+[debug] [2026-08-28T22:30:16.344Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-08-28T22:30:16.344Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:16.344Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:16.344Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-08-28T22:30:16.344Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-08-28T22:30:17.311Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-08-28T22:30:17.311Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'ragent-d6b01'...
+[info] 
+[info] i  deploying functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run lint
+[info] Running command: npm --prefix "$RESOURCE_DIR" run build
+[info] +  functions: Finished running predeploy script. 
+[debug] [2026-08-28T22:30:23.214Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:23.214Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:23.215Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01 [none]
+[debug] [2026-08-28T22:30:23.482Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01 200
+[debug] [2026-08-28T22:30:23.482Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01 {"projectNumber":"216253573721","projectId":"ragent-d6b01","lifecycleState":"ACTIVE","name":"RAGent","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-08-19T08:52:24.362Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-08-28T22:30:23.485Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:23.485Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:23.486Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/ragent-d6b01/adminSdkConfig [none]
+[debug] [2026-08-28T22:30:23.891Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/ragent-d6b01/adminSdkConfig 200
+[debug] [2026-08-28T22:30:23.891Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/ragent-d6b01/adminSdkConfig {"projectId":"ragent-d6b01","storageBucket":"ragent-d6b01.firebasestorage.app"}
+[debug] [2026-08-28T22:30:23.892Z] Validating nodejs source
+[debug] [2026-08-28T22:30:24.499Z] > [functions] package.json contents: {
+  "name": "functions",
+  "scripts": {
+    "lint": "eslint --ext .js,.ts .",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "@google/genai": "^2.19.0",
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.0",
+    "openai": "^7.8.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.4.1",
+    "typescript": "^6.0.0"
+  },
+  "private": true
+}
+[debug] [2026-08-28T22:30:24.499Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-08-28T22:30:24.501Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-08-28T22:30:24.511Z] Found firebase-functions binary at 'C:\Users\baejunsung\AndroidStudioProjects\RAGent\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8781
+
+[debug] [2026-08-28T22:30:24.926Z] Got response from /__/functions.yaml {"endpoints":{"askAi":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":10,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["asia-northeast3"],"secretEnvironmentVariables":[{"key":"GEMINI_API_KEY"}],"labels":{},"callableTrigger":{},"entryPoint":"askAi"},"recordPersonalAiUsage":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":10,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["asia-northeast3"],"labels":{},"callableTrigger":{},"entryPoint":"recordPersonalAiUsage"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{},"params":[{"type":"secret","name":"GEMINI_API_KEY"}]}
+[debug] [2026-08-28T22:30:27.963Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:27.963Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:27.964Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/projects/ragent-d6b01/locations/-/functions [none]
+[debug] [2026-08-28T22:30:28.753Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/projects/ragent-d6b01/locations/-/functions 200
+[debug] [2026-08-28T22:30:28.753Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/projects/ragent-d6b01/locations/-/functions {}
+[debug] [2026-08-28T22:30:28.753Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:28.753Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:28.753Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/ragent-d6b01/locations/-/functions filter=environment%3D%22GEN_2%22
+[debug] [2026-08-28T22:30:30.089Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/ragent-d6b01/locations/-/functions 200
+[debug] [2026-08-28T22:30:30.089Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v2/projects/ragent-d6b01/locations/-/functions {"functions":[{"name":"projects/ragent-d6b01/locations/asia-northeast3/functions/recordPersonalAiUsage","buildConfig":{"build":"projects/216253573721/locations/asia-northeast3/builds/31d16ba2-7587-49a0-8aa8-85dc4ed34881","runtime":"nodejs22","entryPoint":"recordPersonalAiUsage","source":{"storageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"recordPersonalAiUsage/function-source.zip","generation":"1787955915367785"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/ragent-d6b01/locations/asia-northeast3/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"recordPersonalAiUsage/function-source.zip","generation":"1787955915367785"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/ragent-d6b01/serviceAccounts/216253573721-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/ragent-d6b01/locations/asia-northeast3/services/recordpersonalaiusage","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"ragent-d6b01\",\"storageBucket\":\"ragent-d6b01.firebasestorage.app\"}","GCLOUD_PROJECT":"ragent-d6b01","EVENTARC_CLOUD_EVENT_SOURCE":"projects/ragent-d6b01/locations/asia-northeast3/services/recordPersonalAiUsage","FUNCTION_REGION":"asia-northeast3","FUNCTION_TARGET":"recordPersonalAiUsage","LOG_EXECUTION_ID":"true","FUNCTION_SIGNATURE_TYPE":"http"},"maxInstanceCount":10,"ingressSettings":"ALLOW_ALL","uri":"https://recordpersonalaiusage-3onc6s2wla-du.a.run.app","serviceAccountEmail":"216253573721-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"revision":"recordpersonalaiusage-00006-gep","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-08-28T22:25:25.158040542Z","labels":{"deployment-callable":"true","firebase-functions-hash":"ab4496d3bd8d5d561450cbe56c5abe0c10fa87bc","deployment-tool":"cli-firebase"},"environment":"GEN_2","url":"https://asia-northeast3-ragent-d6b01.cloudfunctions.net/recordPersonalAiUsage","satisfiesPzs":true,"createTime":"2026-08-28T11:59:15.826207032Z","satisfiesPzi":true},{"name":"projects/ragent-d6b01/locations/asia-northeast3/functions/askAi","buildConfig":{"build":"projects/216253573721/locations/asia-northeast3/builds/53b7c681-07df-40f1-9af0-5f0edcdfa3ee","runtime":"nodejs22","entryPoint":"askAi","source":{"storageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"askAi/function-source.zip","generation":"1787956105783133"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/ragent-d6b01/locations/asia-northeast3/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"askAi/function-source.zip","generation":"1787956105783133"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/ragent-d6b01/serviceAccounts/216253573721-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/ragent-d6b01/locations/asia-northeast3/services/askai","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"ragent-d6b01\",\"storageBucket\":\"ragent-d6b01.firebasestorage.app\"}","GCLOUD_PROJECT":"ragent-d6b01","EVENTARC_CLOUD_EVENT_SOURCE":"projects/ragent-d6b01/locations/asia-northeast3/services/askAi","FUNCTION_REGION":"asia-northeast3","FUNCTION_TARGET":"askAi","LOG_EXECUTION_ID":"true","FUNCTION_SIGNATURE_TYPE":"http"},"maxInstanceCount":10,"ingressSettings":"ALLOW_ALL","uri":"https://askai-3onc6s2wla-du.a.run.app","serviceAccountEmail":"216253573721-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"secretEnvironmentVariables":[{"key":"GEMINI_API_KEY","projectId":"ragent-d6b01","secret":"GEMINI_API_KEY","version":"2"}],"revision":"askai-00012-xov","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-08-28T22:29:13.407298829Z","labels":{"deployment-tool":"cli-firebase","deployment-callable":"true","firebase-functions-hash":"74575c7ccd557ff87e9242ab5ea37ec569dcbdfa"},"environment":"GEN_2","url":"https://asia-northeast3-ragent-d6b01.cloudfunctions.net/askAi","satisfiesPzs":true,"createTime":"2026-08-28T08:59:16.635472623Z","satisfiesPzi":true},{"name":"projects/ragent-d6b01/locations/asia-northeast3/functions/askGemini","buildConfig":{"build":"projects/216253573721/locations/asia-northeast3/builds/9a3711a3-6009-45b3-a88f-3cd68fee6e09","runtime":"nodejs22","entryPoint":"askGemini","source":{"storageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"askGemini/function-source.zip","generation":"1787868565327046"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/ragent-d6b01/locations/asia-northeast3/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-216253573721-asia-northeast3","object":"askGemini/function-source.zip","generation":"1787868565327046"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/ragent-d6b01/serviceAccounts/216253573721-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/ragent-d6b01/locations/asia-northeast3/services/askgemini","timeoutSeconds":60,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"ragent-d6b01\",\"storageBucket\":\"ragent-d6b01.firebasestorage.app\"}","GCLOUD_PROJECT":"ragent-d6b01","EVENTARC_CLOUD_EVENT_SOURCE":"projects/ragent-d6b01/locations/asia-northeast3/services/askGemini","FUNCTION_REGION":"asia-northeast3","FUNCTION_TARGET":"askGemini","LOG_EXECUTION_ID":"true"},"maxInstanceCount":10,"ingressSettings":"ALLOW_ALL","uri":"https://askgemini-3onc6s2wla-du.a.run.app","serviceAccountEmail":"216253573721-compute@developer.gserviceaccount.com","availableMemory":"256Mi","allTrafficOnLatestRevision":true,"secretEnvironmentVariables":[{"key":"GEMINI_API_KEY","projectId":"ragent-d6b01","secret":"GEMINI_API_KEY","version":"2"}],"revision":"askgemini-00008-mij","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-08-27T22:10:51.197051364Z","labels":{"firebase-functions-hash":"060d7d919f44f522b891083f8ab8dd7f962cfdda","deployment-tool":"cli-firebase","deployment-callable":"true"},"environment":"GEN_2","url":"https://asia-northeast3-ragent-d6b01.cloudfunctions.net/askGemini","satisfiesPzs":true,"createTime":"2026-08-27T16:58:56.317896510Z","satisfiesPzi":true}]}
+[info] i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled... 
+[debug] [2026-08-28T22:30:30.091Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-28T22:30:30.091Z] > authorizing via signed-in user (baejunsung1225@gmail.com)
+[debug] [2026-08-28T22:30:30.091Z] [iam] checking project ragent-d6b01 for permissions ["firebase.projects.get","firebaseextensions.instances.list"]
+[debug] [2026-08-28T22:30:30.091Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:30.091Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:30.091Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions [none]
+[debug] [2026-08-28T22:30:30.091Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions  x-goog-user-project=ragent-d6b01
+[debug] [2026-08-28T22:30:30.091Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[debug] [2026-08-28T22:30:30.295Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions 200
+[debug] [2026-08-28T22:30:30.295Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[debug] [2026-08-28T22:30:30.295Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:30.295Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:30.295Z] >>> [apiv2][query] GET https://firebaseextensions.googleapis.com/v1beta/projects/ragent-d6b01/instances pageSize=100&pageToken=
+[debug] [2026-08-28T22:30:31.197Z] <<< [apiv2][status] GET https://firebaseextensions.googleapis.com/v1beta/projects/ragent-d6b01/instances 200
+[debug] [2026-08-28T22:30:31.197Z] <<< [apiv2][body] GET https://firebaseextensions.googleapis.com/v1beta/projects/ragent-d6b01/instances {}
+[debug] [2026-08-28T22:30:31.198Z] Attempting to merge .env secret bindings {} into declared secrets...)}
+[debug] [2026-08-28T22:30:31.198Z] askAi declared secrets: [{"key":"GEMINI_API_KEY","secret":"GEMINI_API_KEY","projectId":"ragent-d6b01"}]
+[debug] [2026-08-28T22:30:31.198Z] recordPersonalAiUsage declared secrets: undefined
+[debug] [2026-08-28T22:30:31.198Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:31.199Z] Checked if tokens are valid: true, expires at: 1787957234176
+[debug] [2026-08-28T22:30:31.199Z] >>> [apiv2][query] GET https://secretmanager.googleapis.com/v1/projects/ragent-d6b01/secrets/GEMINI_API_KEY [none]

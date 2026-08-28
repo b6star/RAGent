@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.yourssu.ragent.mock.CurrentUserId
 import com.yourssu.ragent.mock.mockMessages
 import com.yourssu.ragent.mock.mockPeople
@@ -77,6 +79,19 @@ fun RAGentNavigator(
             onProjectClick = {
                 selectedTab = ProjectTab.Docs
                 screen = AppScreen.ProjectHome(it)
+            },
+            onProfileClick = {
+                val firebaseUser = Firebase.auth.currentUser
+                screen = AppScreen.PersonDetail(
+                    person = Person(
+                        id = firebaseUser?.uid ?: CurrentUserId,
+                        name = firebaseUser?.displayName
+                            ?: firebaseUser?.email?.substringBefore('@')
+                            ?: "나",
+                        projects = projects
+                    ),
+                    returnTo = AppScreen.ProjectList
+                )
             },
             onChatClick = { screen = AppScreen.Chat("Messages", "Inbox", listMode = true) },
             onCreateClick = { showCreateDialog = true }
@@ -186,12 +201,31 @@ fun RAGentNavigator(
             )
         }
 
-        is AppScreen.PersonDetail -> PersonDetailScreen(
-            person = current.person,
-            profileRole = current.profileRole,
-            profileSummary = current.profileSummary,
-            onBack = { screen = current.returnTo }
-        )
+        is AppScreen.PersonDetail -> {
+            val firebaseUser = Firebase.auth.currentUser
+            val isCurrentUser = current.person.id == CurrentUserId ||
+                current.person.id == firebaseUser?.uid
+            val profilePerson = if (isCurrentUser) {
+                current.person.copy(
+                    id = firebaseUser?.uid ?: current.person.id,
+                    name = firebaseUser?.displayName
+                        ?: firebaseUser?.email?.substringBefore('@')
+                        ?: current.person.name,
+                    projects = projects
+                )
+            } else {
+                current.person
+            }
+
+            PersonDetailScreen(
+                person = profilePerson,
+                profileRole = current.profileRole,
+                profileSummary = current.profileSummary,
+                isCurrentUser = isCurrentUser,
+                usageDashboard = agentViewModel.usageDashboard,
+                onBack = { screen = current.returnTo }
+            )
+        }
 
         is AppScreen.Chat -> ChatRoute(
             chat = current,
