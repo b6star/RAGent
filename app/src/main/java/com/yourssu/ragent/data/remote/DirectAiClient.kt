@@ -19,6 +19,11 @@ data class DirectAiGenerationResult(
     val modelName: String
 )
 
+data class DirectAiAttachment(
+    val mimeType: String,
+    val dataBase64: String
+)
+
 class DirectAiClient(
     private val httpClient: OkHttpClient = OkHttpClient()
 ) {
@@ -27,11 +32,12 @@ class DirectAiClient(
         prompt: String,
         apiKey: String,
         model: String,
+        attachments: List<DirectAiAttachment> = emptyList(),
         onChunk: suspend (String) -> Unit
     ): DirectAiGenerationResult = withContext(Dispatchers.IO) {
         val request = when (provider) {
-            AiApiProvider.Gemini -> geminiRequest(prompt, apiKey, model)
-            AiApiProvider.OpenAi -> openAiRequest(prompt, apiKey, model)
+            AiApiProvider.Gemini -> geminiRequest(prompt, apiKey, model, attachments)
+            AiApiProvider.OpenAi -> openAiRequest(prompt, apiKey, model, attachments)
         }
 
         httpClient.newCall(request).execute().use { response ->
@@ -160,12 +166,18 @@ class DirectAiClient(
         }
     }
 
-    private fun geminiRequest(prompt: String, apiKey: String, model: String): Request {
+    private fun geminiRequest(prompt: String, apiKey: String, model: String, attachments: List<DirectAiAttachment>): Request {
+        val parts = org.json.JSONArray().put(JSONObject().put("text", prompt))
+        attachments.forEach { attachment ->
+            parts.put(JSONObject().put("inline_data", JSONObject()
+                .put("mime_type", attachment.mimeType)
+                .put("data", attachment.dataBase64)))
+        }
         val body = JSONObject()
             .put("contents", org.json.JSONArray().put(
                 JSONObject()
                     .put("role", "user")
-                    .put("parts", org.json.JSONArray().put(JSONObject().put("text", prompt)))
+                    .put("parts", parts)
             ))
             .toString()
         return Request.Builder()
@@ -174,10 +186,17 @@ class DirectAiClient(
             .build()
     }
 
-    private fun openAiRequest(prompt: String, apiKey: String, model: String): Request {
+    private fun openAiRequest(prompt: String, apiKey: String, model: String, attachments: List<DirectAiAttachment>): Request {
+        val content = org.json.JSONArray().put(JSONObject().put("type", "input_text").put("text", prompt))
+        attachments.filter { it.mimeType.startsWith("image/") }.forEach { attachment ->
+            content.put(JSONObject()
+                .put("type", "input_image")
+                .put("image_url", "data:${attachment.mimeType};base64,${attachment.dataBase64}"))
+        }
+        val input = org.json.JSONArray().put(JSONObject().put("role", "user").put("content", content))
         val body = JSONObject()
             .put("model", model)
-            .put("input", prompt)
+            .put("input", input)
             .put("stream", true)
             .put("store", false)
             .toString()

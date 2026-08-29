@@ -4,6 +4,7 @@ import com.yourssu.ragent.model.Person
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.Role
+import com.yourssu.ragent.ui.project.AiSelectionDraft
 
 sealed interface AppScreen {
     data object ProjectList : AppScreen
@@ -16,7 +17,11 @@ sealed interface AppScreen {
         val listMode: Boolean = false,
         val returnToList: Boolean = false
     ) : AppScreen
-    data class AgentChat(val project: Project) : AppScreen
+    data class AgentChat(
+        val project: Project,
+        val selection: AiSelectionDraft? = null,
+        val discardIfEmpty: Boolean = false
+    ) : AppScreen
     data class PersonDetail(
         val person: Person,
         val returnTo: AppScreen,

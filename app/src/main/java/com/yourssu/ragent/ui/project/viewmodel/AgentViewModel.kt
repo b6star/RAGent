@@ -20,12 +20,14 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.StreamResponse
 import com.google.firebase.functions.functions
+import com.google.firebase.storage.storage
+import com.google.firebase.storage.StorageException
 import com.yourssu.ragent.data.local.AiApiKeyStorage
 import com.yourssu.ragent.data.remote.AiErrorMapper
 import com.yourssu.ragent.data.remote.AiErrorReason
 import com.yourssu.ragent.data.remote.AiRequestException
 import com.yourssu.ragent.data.remote.DirectAiClient
-import com.yourssu.ragent.model.AiApiProvider
+import com.yourssu.ragent.data.remote.DirectAiAttachment
 import com.yourssu.ragent.model.AiUsageDashboard
 import com.yourssu.ragent.model.AiUsageRecord
 import com.yourssu.ragent.model.toAiUsageDashboard
@@ -36,12 +38,32 @@ import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
+data class AiAttachment(
+    val uri: String,
+    val mimeType: String,
+    val displayName: String,
+    val sizeBytes: Long = 0L,
+    val dataBase64: String? = null
+)
+
 data class AiChatSession(
     val id: String = UUID.randomUUID().toString(),
     val projectId: String,
     val title: String,
     val lastMessage: String = "",
     val updatedAt: Long = System.currentTimeMillis()
+)
+
+data class AiSelectionDraft(
+    val sessionId: String,
+    val projectId: String,
+    val sourceUrl: String,
+    val kind: AiSelectionKind,
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val sourceSelection: SourceSelectionResult? = null
 )
 
 data class AiChatMessage(
@@ -56,7 +78,15 @@ data class AiChatMessage(
     val thoughtsTokens: Int? = null,
     val totalTokens: Int? = null,
     val keySource: String? = null,
-    val responseTimeMs: Long? = null
+    val responseTimeMs: Long? = null,
+    val sourceType: String? = null,
+    val canonicalUrls: List<String> = emptyList(),
+    val blockIds: List<String> = emptyList(),
+    val filePath: String? = null,
+    val startLine: Int? = null,
+    val endLine: Int? = null,
+    val selectedText: String? = null,
+    val attachments: List<AiAttachment> = emptyList()
 )
 
 class AgentViewModel(application: Application) : AndroidViewModel(application) {
@@ -85,6 +115,78 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     
     var currentSessionId by mutableStateOf<String?>(null)
         private set
+    var pendingSelection by mutableStateOf<AiSelectionDraft?>(null)
+        private set
+
+    fun updatePendingSelection(selection: AiSelectionDraft) {
+        pendingSelection = selection
+    }
+
+    fun clearPendingSelection() {
+        pendingSelection = null
+    }
+
+    fun pendingSelectionFor(sessionId: String, projectId: String? = null): AiSelectionDraft? =
+        pendingSelection?.takeIf {
+            it.sessionId == sessionId || (projectId != null && it.projectId == projectId)
+        }
+
+    private fun buildPromptWithSelection(
+        question: String,
+        selection: AiSelectionDraft?,
+        attachments: List<AiAttachment>
+    ): String {
+        if (selection == null && attachments.isEmpty()) return question
+
+        val source = selection?.sourceSelection
+        return buildString {
+            append(question)
+            if (attachments.isNotEmpty()) {
+                append("\n\n[Attached files]\n")
+                attachments.forEach { attachment ->
+                    append("- ")
+                        .append(attachment.displayName)
+                        .append(" (")
+                        .append(attachment.mimeType)
+                        .append(")\n")
+                }
+            }
+            if (selection == null) return@buildString
+            append("\n\n[Attached source context]\n")
+            append("Type: ")
+            append(selection.kind.name.lowercase())
+            val sourceUrls = source?.canonicalUrls.orEmpty()
+                .ifEmpty { listOf(source?.canonicalUrl ?: selection.sourceUrl) }
+            append("\nSource URLs:\n")
+            sourceUrls.forEach { append("- ").append(it).append('\n') }
+
+            source?.filePath?.let {
+                append("\nFile: ")
+                append(it)
+            }
+            if (source?.startLine != null) {
+                append("\nLines: ")
+                append(source.startLine)
+                source.endLine?.takeIf { it != source.startLine }?.let {
+                    append('-')
+                    append(it)
+                }
+            }
+            val blockIds = source?.blockIds.orEmpty()
+                .ifEmpty { listOfNotNull(source?.blockId) }
+            if (blockIds.isNotEmpty()) {
+                append("Notion blocks: ")
+                append(blockIds.joinToString(", "))
+                append('\n')
+            }
+            if (selection.kind == AiSelectionKind.Text) {
+                source?.selectedText?.let {
+                    append("\nSelected text:\n")
+                    append(it)
+                }
+            }
+        }
+    }
 
     var selectedModelId by mutableStateOf<String?>(null)
         private set
@@ -217,7 +319,29 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                             thoughtsTokens = doc.getLong("thoughtsTokens")?.toInt(),
                             totalTokens = doc.getLong("totalTokens")?.toInt(),
                             keySource = doc.getString("keySource"),
-                            responseTimeMs = doc.getLong("responseTimeMs")
+                            responseTimeMs = doc.getLong("responseTimeMs"),
+                            sourceType = doc.getString("sourceType"),
+                            canonicalUrls = (doc.get("canonicalUrls") as? List<*>)
+                                ?.filterIsInstance<String>().orEmpty(),
+                            blockIds = (doc.get("blockIds") as? List<*>)
+                                ?.filterIsInstance<String>().orEmpty(),
+                            filePath = doc.getString("filePath"),
+                            startLine = doc.getLong("startLine")?.toInt(),
+                            endLine = doc.getLong("endLine")?.toInt(),
+                            selectedText = doc.getString("selectedText"),
+                            attachments = (doc.get("attachments") as? List<*>)
+                                ?.mapNotNull { value ->
+                                    (value as? Map<*, *>)?.let { item ->
+                                        val uri = item["uri"] as? String ?: return@let null
+                                        AiAttachment(
+                                            uri = uri,
+                                            mimeType = item["mimeType"] as? String ?: "application/octet-stream",
+                                            displayName = item["displayName"] as? String ?: "attachment",
+                                            sizeBytes = (item["sizeBytes"] as? Number)?.toLong() ?: 0L
+                                        )
+                                    }
+                                }
+                                .orEmpty()
                         )
                     }
                 }.getOrElse { conversionError ->
@@ -313,13 +437,56 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun discardSessionIfEmpty(projectId: String, sessionId: String?) {
+        val uid = auth.currentUser?.uid ?: return
+        val safeSessionId = sessionId ?: return
+        viewModelScope.launch {
+            runCatching {
+                val sessionRef = db.collection("users").document(uid)
+                    .collection("ai_chats").document(projectId)
+                    .collection("sessions").document(safeSessionId)
+                val messages = sessionRef.collection("messages").limit(1).get().await()
+                if (messages.isEmpty) {
+                    sessionRef.delete().await()
+                    _sessions.removeAll { it.id == safeSessionId }
+                    if (currentSessionId == safeSessionId) currentSessionId = null
+                }
+            }.onFailure { error ->
+                Log.e(TAG, "Discard empty session error", error)
+            }
+        }
+    }
+
+    private suspend fun uploadAttachments(
+        uid: String,
+        projectId: String,
+        sessionId: String,
+        attachments: List<AiAttachment>
+    ): List<AiAttachment> {
+        if (attachments.isEmpty()) return emptyList()
+
+        return attachments.map { attachment ->
+            val safeName = attachment.displayName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val reference = Firebase.storage.reference
+                .child("users/$uid/ai_attachments/$projectId/$sessionId/${UUID.randomUUID()}_$safeName")
+            reference.putFile(android.net.Uri.parse(attachment.uri)).await()
+            attachment.copy(uri = reference.downloadUrl.await().toString())
+        }
+    }
+
     /**
      * 하이브리드 질문 로직: 메시지 저장은 앱에서, AI 호출은 서버에서
      */
-    fun askQuestion(projectId: String, prompt: String) {
+    fun askQuestion(
+        projectId: String,
+        prompt: String,
+        attachments: List<AiAttachment> = emptyList()
+    ) {
         val sessionId = currentSessionId ?: return
         if (prompt.isBlank()) return
         val uid = auth.currentUser?.uid ?: return
+        val attachedSelection = pendingSelectionFor(sessionId)
+        val aiPrompt = buildPromptWithSelection(prompt, attachedSelection, attachments)
 
         val sessionRef = db.collection("users").document(uid)
             .collection("ai_chats").document(projectId)
@@ -340,13 +507,47 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 // 1. 첫 메시지인지 확인하여 제목 업데이트 준비
                 val messagesSnapshot = sessionRef.collection("messages").get().await()
                 val isFirstMessage = messagesSnapshot.isEmpty
+                val storedAttachments = uploadAttachments(uid, projectId, sessionId, attachments)
+                Log.d(
+                    TAG,
+                    "AI attachment preflight count=${attachments.size} " +
+                        "valid=${attachments.count { !it.dataBase64.isNullOrBlank() }} " +
+                        "bytes=${attachments.sumOf { it.sizeBytes }} " +
+                        "stored=${storedAttachments.size}"
+                )
 
                 // 2. 사용자 질문 Firestore에 즉시 저장
-                sessionRef.collection("messages").add(mapOf(
+                val userMessage = hashMapOf<String, Any>(
                     "text" to prompt,
                     "isUser" to true,
                     "timestamp" to FieldValue.serverTimestamp()
-                )).await()
+                )
+                if (storedAttachments.isNotEmpty()) {
+                    userMessage["attachments"] = storedAttachments.map { attachment ->
+                        mapOf(
+                            "uri" to attachment.uri,
+                            "mimeType" to attachment.mimeType,
+                            "displayName" to attachment.displayName,
+                            "sizeBytes" to attachment.sizeBytes
+                        )
+                    }
+                }
+                attachedSelection?.sourceSelection?.let { source ->
+                    userMessage["sourceType"] = source.sourceType
+                    userMessage["canonicalUrls"] = source.canonicalUrls
+                        .ifEmpty { listOfNotNull(source.canonicalUrl) }
+                    userMessage["blockIds"] = source.blockIds
+                        .ifEmpty { listOfNotNull(source.blockId) }
+                    source.filePath?.let { userMessage["filePath"] = it }
+                    source.startLine?.let { userMessage["startLine"] = it }
+                    source.endLine?.let { userMessage["endLine"] = it }
+                    source.selectedText?.let { userMessage["selectedText"] = it }
+                }
+                sessionRef.collection("messages").add(userMessage).await()
+
+                if (attachedSelection != null) {
+                    clearPendingSelection()
+                }
 
                 if (isFirstMessage) {
                     val autoTitle = if (prompt.length > 25) prompt.take(22) + "..." else prompt
@@ -383,9 +584,14 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 if (personalApiKey != null) {
                     val result = directAiClient.stream(
                         provider = apiSettings.provider,
-                        prompt = prompt,
+                        prompt = aiPrompt,
                         apiKey = personalApiKey,
-                        model = model
+                        model = model,
+                        attachments = attachments.mapNotNull { attachment ->
+                            attachment.dataBase64?.let { data ->
+                                DirectAiAttachment(attachment.mimeType, data)
+                            }
+                        }
                     ) { delta ->
                         updateStreamingDraft(sessionId) { draft ->
                             draft.copy(text = draft.text + delta)
@@ -426,13 +632,39 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 } else {
                     val requestData = hashMapOf<String, Any>(
-                        "prompt" to prompt,
+                        "prompt" to aiPrompt,
                         "provider" to apiSettings.provider.requestValue,
                         "model" to model,
                         "usageId" to assistantMessageRef.id,
                         "projectId" to projectId,
                         "sessionId" to sessionId
                     )
+                    attachedSelection?.sourceSelection?.let { source ->
+                        requestData["sourceContext"] = hashMapOf<String, Any>(
+                            "sourceType" to source.sourceType,
+                            "canonicalUrls" to source.canonicalUrls.ifEmpty {
+                                listOfNotNull(source.canonicalUrl)
+                            },
+                            "blockIds" to source.blockIds.ifEmpty {
+                                listOfNotNull(source.blockId)
+                            },
+                            "selectedText" to (source.selectedText ?: "")
+                        ).apply {
+                            source.filePath?.let { put("filePath", it) }
+                            source.startLine?.let { put("startLine", it) }
+                            source.endLine?.let { put("endLine", it) }
+                        }
+                    }
+                    if (storedAttachments.isNotEmpty()) {
+                        requestData["attachments"] = storedAttachments.map { attachment ->
+                            mapOf(
+                                "uri" to attachment.uri,
+                                "mimeType" to attachment.mimeType,
+                                "displayName" to attachment.displayName
+                                ,"dataBase64" to (attachment.dataBase64 ?: "")
+                            )
+                        }
+                    }
                     var finalResult: Map<*, *>? = null
                     functions.getHttpsCallable("askAi")
                         .stream(requestData)
@@ -519,6 +751,16 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 throw e
             } catch (e: Exception) {
                 removeStreamingDraft(sessionId)
+                if (e is StorageException) {
+                    Log.e(
+                        TAG,
+                        "Attachment upload failed: errorCode=${e.errorCode}, " +
+                            "httpResult=${e.httpResultCode}",
+                        e
+                    )
+                    error = "첨부 파일을 업로드하지 못했습니다. Firebase Storage 권한과 네트워크를 확인해주세요."
+                    return@launch
+                }
                 val mappedError = AiErrorMapper.fromThrowable(e)
                 Log.e(
                     TAG,

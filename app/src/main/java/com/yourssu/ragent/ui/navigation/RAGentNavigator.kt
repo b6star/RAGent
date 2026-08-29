@@ -30,6 +30,7 @@ import com.yourssu.ragent.ui.chat.ChatRoute
 import com.yourssu.ragent.ui.person.PersonDetailScreen
 import com.yourssu.ragent.ui.project.AgentTab
 import com.yourssu.ragent.ui.project.AgentViewModel
+import com.yourssu.ragent.ui.project.AiSelectionDraft
 import com.yourssu.ragent.ui.project.ProjectHomeScreen
 import com.yourssu.ragent.ui.project.ProjectInviteDialog
 import com.yourssu.ragent.ui.project.ProjectViewModel
@@ -120,6 +121,42 @@ fun RAGentNavigator(
                 onProjectChatClick = {
                     screen = AppScreen.Chat(project.name, "Project messages", project = project, listMode = true)
                 },
+                onAiSelectClick = { },
+                onLoadAiSessions = agentViewModel::loadSessions,
+                aiSessions = agentViewModel.sessions,
+                onAiSelectExisting = { rect, sourceUrl, kind, sourceSelection, session ->
+                    agentViewModel.selectSession(project.id, session.id)
+                    val selection = AiSelectionDraft(
+                        sessionId = session.id,
+                        projectId = project.id,
+                        sourceUrl = sourceUrl,
+                        kind = kind,
+                        left = rect.left,
+                        top = rect.top,
+                        right = rect.right,
+                        bottom = rect.bottom,
+                        sourceSelection = sourceSelection
+                    )
+                    agentViewModel.updatePendingSelection(selection)
+                    screen = AppScreen.AgentChat(project, selection)
+                },
+                onAiSelectNew = { rect, sourceUrl, kind, sourceSelection ->
+                    agentViewModel.startNewSession(project.id, "AI Select") { session ->
+                        val selection = AiSelectionDraft(
+                            sessionId = session.id,
+                            projectId = project.id,
+                            sourceUrl = sourceUrl,
+                            kind = kind,
+                            left = rect.left,
+                            top = rect.top,
+                            right = rect.right,
+                            bottom = rect.bottom,
+                            sourceSelection = sourceSelection
+                        )
+                        agentViewModel.updatePendingSelection(selection)
+                        screen = AppScreen.AgentChat(project, selection, discardIfEmpty = true)
+                    }
+                },
                 onMemberChatClick = { member ->
                     screen = AppScreen.Chat(
                         dataHelpers.personName(member.personId),
@@ -206,7 +243,15 @@ fun RAGentNavigator(
             AgentChatScreen(
                 project = current.project,
                 viewModel = agentViewModel,
-                onBack = { screen = AppScreen.ProjectHome(current.project) }
+                initialSelection = current.selection,
+                onBack = {
+                    // 선택 후 전송하지 않고 나가면 선택 텍스트/이미지 컨텍스트를 폐기한다.
+                    agentViewModel.clearPendingSelection()
+                    if (current.discardIfEmpty) {
+                        agentViewModel.discardSessionIfEmpty(current.project.id, agentViewModel.currentSessionId)
+                    }
+                    screen = AppScreen.ProjectHome(current.project)
+                }
             )
         }
 
