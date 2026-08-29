@@ -167,6 +167,14 @@ fun RAGentNavigator(
                         )
                     }
                 },
+                onSourceLinksChange = { githubUrl, notionUrl, onResult ->
+                    projectViewModel.updateSourceLinks(project.id, githubUrl, notionUrl) { saved, message ->
+                        if (!saved && message != null) {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                        onResult(saved, message)
+                    }
+                },
                 onProjectVisibilityChange = { visibility, onResult ->
                     projectViewModel.changeProjectVisibility(project.id, visibility, onResult)
                 },

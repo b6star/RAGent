@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectVisibility
+import com.yourssu.ragent.model.PublicSourceUrl
 import com.yourssu.ragent.model.PullRequest
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.components.AppIcon
@@ -61,6 +62,7 @@ fun ProjectDetailsSheet(
     personName: (String) -> String,
     onMemberClick: (ProjectMember) -> Unit,
     onCreateInvite: (Role, Boolean) -> Unit,
+    onSourceLinksChange: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onProjectVisibilityChange: (ProjectVisibility, (Boolean) -> Unit) -> Unit,
     onDeleteProject: () -> Unit,
     onLeaveProject: () -> Unit
@@ -72,6 +74,7 @@ fun ProjectDetailsSheet(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
     var regenerateRole by remember { mutableStateOf<Role?>(null) }
+    var showSourceEditor by remember { mutableStateOf(false) }
     val canRead = projectVisibility == ProjectVisibility.Public || project.myRole != Role.Viewer
 
     Column(
@@ -87,15 +90,20 @@ fun ProjectDetailsSheet(
         )
 
         InfoRow("프로젝트 이름", project.name)
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("GitHub", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
             LinkMarker(project.githubUrl.ifBlank { "연결 없음" }, icon = AppIcon.Github)
+            InfoRow("Notion 문서", project.docsUrl.ifBlank { "연결 없음" })
+            if (project.myRole == Role.Admin) {
+                TextButton(onClick = { showSourceEditor = true }) {
+                    Text("GitHub · Notion 링크 수정")
+                }
+            }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("나의 역할", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
             RoleMarker(project.myRole, false)
         }
-        InfoRow("Docs", project.docsUrl.ifBlank { "연결 없음" })
         MemberMarkers(project, personName, onMemberClick)
         VisibilityRow(
             label = "프로젝트 공개",
@@ -192,6 +200,20 @@ fun ProjectDetailsSheet(
             dismissButton = {
                 TextButton(onClick = { regenerateRole = null }) {
                     Text("취소")
+                }
+            }
+        )
+    }
+
+    if (showSourceEditor) {
+        EditSourceLinksDialog(
+            githubUrl = project.githubUrl,
+            notionUrl = project.docsUrl,
+            onDismiss = { showSourceEditor = false },
+            onSave = { github, notion, onResult ->
+                onSourceLinksChange(github, notion) { saved, message ->
+                    onResult(saved, message)
+                    if (saved) showSourceEditor = false
                 }
             }
         )
@@ -375,6 +397,14 @@ private fun PullRequestSheet(pr: PullRequest, personName: (String) -> String) {
 private fun InfoRow(label: String, value: String) {
     Column {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-        Text(value, style = MaterialTheme.typography.bodyLarge)
+        if (value.startsWith("https://") && value.contains("notion.", ignoreCase = true)) {
+            LinkMarker(
+                input = PublicSourceUrl.notionCaption(value),
+                icon = AppIcon.Notion,
+                url = value
+            )
+        } else {
+            Text(value, style = MaterialTheme.typography.bodyLarge)
+        }
     }
 }

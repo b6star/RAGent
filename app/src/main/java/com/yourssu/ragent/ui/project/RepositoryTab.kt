@@ -1,5 +1,6 @@
 package com.yourssu.ragent.ui.project
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 
 @Composable
-fun RepositoryTab(project: Project) {
+fun RepositoryTab(project: Project, onExit: () -> Unit, visible: Boolean = true) {
+    SourceWebView(project.githubUrl, "GitHub Repository 연결 없음", onExit, visible, darkTheme = isSystemInDarkTheme(), stateKey = "${project.id}:github")
+    return
     Column(
         modifier = Modifier
             .fillMaxSize()
