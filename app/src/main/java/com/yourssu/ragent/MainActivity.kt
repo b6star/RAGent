@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +25,7 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
@@ -49,6 +51,11 @@ class MainActivity : ComponentActivity() {
             var user by remember { mutableStateOf(auth.currentUser) }
             var errorMessage by remember { mutableStateOf<String?>(null) }
             val scope = rememberCoroutineScope()
+            DisposableEffect(auth) {
+                val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
+                auth.addAuthStateListener(listener)
+                onDispose { auth.removeAuthStateListener(listener) }
+            }
             RAGentTheme {
                 /*
                 if (BuildConfig.ENABLE_ANONYMOUS_LOGIN && user == null) {
@@ -88,7 +95,8 @@ class MainActivity : ComponentActivity() {
                 } else {
                     RAGentApp(
                         inviteLink = pendingInvite.value,
-                        onInviteHandled = { pendingInvite.value = null }
+                        onInviteHandled = { pendingInvite.value = null },
+                        onLogout = { auth.signOut() }
                     )
                 }
             }

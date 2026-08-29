@@ -47,7 +47,8 @@ fun RAGentNavigator(
     joinError: String?,
     onInviteHandled: () -> Unit,
     onPendingInviteChange: (ProjectInvite?) -> Unit,
-    onJoinErrorChange: (String?) -> Unit
+    onJoinErrorChange: (String?) -> Unit,
+    onLogout: () -> Unit
 ) {
     val projects = projectViewModel.projects
     val agentViewModel: AgentViewModel = viewModel()
@@ -166,6 +167,14 @@ fun RAGentNavigator(
                         )
                     }
                 },
+                onSourceLinksChange = { githubUrl, notionUrl, onResult ->
+                    projectViewModel.updateSourceLinks(project.id, githubUrl, notionUrl) { saved, message ->
+                        if (!saved && message != null) {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                        onResult(saved, message)
+                    }
+                },
                 onProjectVisibilityChange = { visibility, onResult ->
                     projectViewModel.changeProjectVisibility(project.id, visibility, onResult)
                 },
@@ -223,7 +232,8 @@ fun RAGentNavigator(
                 profileSummary = current.profileSummary,
                 isCurrentUser = isCurrentUser,
                 usageDashboard = agentViewModel.usageDashboard,
-                onBack = { screen = current.returnTo }
+                onBack = { screen = current.returnTo },
+                onLogout = onLogout
             )
         }
 

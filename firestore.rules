@@ -28,6 +28,23 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/projects/$(projectId)/members/$(request.auth.uid)).data.role == 'Admin';
     }
 
+    function hasValidPublicSourceLinks() {
+      return request.resource.data.keys().hasAll(['githubUrl', 'docsUrl'])
+        && request.resource.data.githubUrl is string
+        && request.resource.data.docsUrl is string
+        && request.resource.data.githubUrl.size() <= 2048
+        && request.resource.data.docsUrl.size() <= 2048
+        && (request.resource.data.githubUrl == ''
+          || request.resource.data.githubUrl.matches('^https://github\\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'))
+        && (request.resource.data.docsUrl == ''
+          || request.resource.data.docsUrl.matches('^https://(([A-Za-z0-9-]+\\.)*notion\\.site|([A-Za-z0-9-]+\\.)*notion\\.so|app\\.notion\\.com)/[^\\s?#]+$'));
+    }
+
+    function sourceLinkChangeIsAuthorized(projectId) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['githubUrl', 'docsUrl'])
+        || (isAdmin(projectId) && hasValidPublicSourceLinks());
+    }
+
     function invite(projectId, inviteId) {
       return get(/databases/$(database)/documents/projects/$(projectId)/invites/$(inviteId));
     }
@@ -75,17 +92,18 @@ service cloud.firestore {
 
     match /projects/{projectId} {
       allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid;
+        && request.resource.data.ownerId == request.auth.uid
+        && hasValidPublicSourceLinks();
 
       allow read: if signedIn()
         && (resource.data.ownerId == request.auth.uid
           || resource.data.visibility == 'Public'
           || isMember(projectId));
 
-      allow update: if isAdmin(projectId) || (
+      allow update: if sourceLinkChangeIsAuthorized(projectId) && (isAdmin(projectId) || (
         isOwner(projectId)
         && request.resource.data.ownerId == resource.data.ownerId
-      );
+      ));
 
       allow delete: if isAdmin(projectId) || isOwner(projectId);
     }

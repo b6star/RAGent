@@ -15,8 +15,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -40,7 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectTab
@@ -48,7 +55,6 @@ import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.ui.components.AppIcon
 import com.yourssu.ragent.ui.components.RAGentIcon
-import com.yourssu.ragent.ui.layout.ScreenPadding
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +77,7 @@ fun ProjectHomeScreen(
     onMemberRoleChange: (ProjectMember, Role) -> Unit,
     onMemberDelete: (ProjectMember) -> Unit,
     onCreateInvite: (Role, Boolean) -> Unit,
+    onSourceLinksChange: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onProjectVisibilityChange: (ProjectVisibility, (Boolean) -> Unit) -> Unit,
     onDeleteProject: () -> Unit,
     onLeaveProject: () -> Unit,
@@ -89,26 +96,56 @@ fun ProjectHomeScreen(
         wasLoading = isLoading
     }
 
-    BackHandler(onBack = onBack)
+    BackHandler(
+        enabled = selectedTab != ProjectTab.Docs && selectedTab != ProjectTab.Repository,
+        onBack = onBack
+    )
 
-    Scaffold(bottomBar = { ProjectBottomBar(selectedTab, onTabSelected) }) { padding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        val padding = PaddingValues(0.dp)
         val content: @Composable (Modifier) -> Unit = { modifier ->
             Column(
                 modifier = modifier
                     .fillMaxSize()
-                    .padding(ScreenPadding),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                    .windowInsetsPadding(WindowInsets.statusBars),
+                verticalArrangement = Arrangement.spacedBy(if (selectedTab == ProjectTab.Docs || selectedTab == ProjectTab.Repository) 4.dp else 18.dp)
             ) {
                 ProjectHeader(
                     projectName = project.name,
-                    tabName = selectedTab.displayName,
+                    horizontalPadding = 16.dp,
                     onBack = onBack,
                     onDetailsClick = { showDetails = true },
                     onChatClick = onProjectChatClick
                 )
+                Box(Modifier.fillMaxSize()) {
+                    DocsTab(project, onBack, visible = selectedTab == ProjectTab.Docs)
+                    RepositoryTab(project, onBack, visible = selectedTab == ProjectTab.Repository)
+                    when (selectedTab) {
+                        ProjectTab.Docs, ProjectTab.Repository -> Unit
+                        ProjectTab.Members -> MembersTab(
+                            members = project.members,
+                            personName = personName,
+                            canManageMembers = project.myRole == Role.Admin,
+                            scrollIndex = membersScrollIndex,
+                            scrollOffset = membersScrollOffset,
+                            onScrollPositionChange = onMembersScrollPositionChange,
+                            onMemberChatClick = onMemberChatClick,
+                            onMemberClick = onMemberClick,
+                            onRoleChange = onMemberRoleChange,
+                            onMemberDelete = onMemberDelete
+                        )
+                        ProjectTab.Agent -> AgentTab(project = project, onSessionClick = onAgentSessionClick)
+                    }
+                }
+                return@Column
+                /*
                 when (selectedTab) {
-                    ProjectTab.Docs -> DocsTab()
-                    ProjectTab.Repository -> RepositoryTab(project)
+                    ProjectTab.Docs, ProjectTab.Repository -> {
+                        Box(Modifier.fillMaxSize()) {
+                            DocsTab(project, onBack, visible = selectedTab == ProjectTab.Docs)
+                            RepositoryTab(project, onBack, visible = selectedTab == ProjectTab.Repository)
+                        }
+                    }
                     ProjectTab.Members -> MembersTab(
                         members = project.members,
                         personName = personName,
@@ -126,15 +163,20 @@ fun ProjectHomeScreen(
                         onSessionClick = onAgentSessionClick
                     )
                 }
+                */
             }
         }
 
-        if (selectedTab == ProjectTab.Agent) {
+        if (false) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(padding)
+                    .let {
+                        if (selectedTab == ProjectTab.Docs || selectedTab == ProjectTab.Repository) {
+                            it
+                        } else it.padding(padding)
+                    }
             ) {
                 content(Modifier)
             }
@@ -184,6 +226,9 @@ fun ProjectHomeScreen(
                 }
             }
         }
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            ProjectBottomBar(selectedTab, onTabSelected)
+        }
     }
 
     if (showDetails) {
@@ -199,6 +244,7 @@ fun ProjectHomeScreen(
                     onMemberClick(it)
                 },
                 onCreateInvite = onCreateInvite,
+                onSourceLinksChange = onSourceLinksChange,
                 onProjectVisibilityChange = onProjectVisibilityChange,
                 onDeleteProject = {
                     showDetails = false
@@ -213,12 +259,12 @@ fun ProjectHomeScreen(
 @Composable
 private fun ProjectHeader(
     projectName: String,
-    tabName: String,
+    horizontalPadding: Dp,
     onBack: () -> Unit,
     onDetailsClick: () -> Unit,
     onChatClick: () -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = Modifier.fillMaxWidth().height(38.dp).padding(horizontal = horizontalPadding), verticalAlignment = Alignment.CenterVertically) {
         CircleButton(onClick = onBack, icon = AppIcon.Back)
         Column(
             modifier = Modifier
@@ -228,14 +274,10 @@ private fun ProjectHeader(
             Text(
                 text = projectName,
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black
-            )
-            Text(
-                text = tabName,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         CircleButton(onClick = onChatClick, icon = AppIcon.ChatList)
@@ -246,7 +288,7 @@ private fun ProjectHeader(
 
 @Composable
 private fun CircleButton(onClick: () -> Unit, icon: AppIcon) {
-    Surface(onClick = onClick, modifier = Modifier.size(42.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+    Surface(onClick = onClick, modifier = Modifier.size(34.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
         Box(contentAlignment = Alignment.Center) {
             RAGentIcon(icon, MaterialTheme.colorScheme.onSurface)
         }
@@ -276,7 +318,6 @@ private fun RowScope.BottomBarItem(tab: ProjectTab, selected: Boolean, onClick: 
     Surface(onClick = onClick, modifier = Modifier.weight(1f), shape = RoundedCornerShape(28.dp), color = if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent) {
         Column(modifier = Modifier.padding(vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             RAGentIcon(tab.icon, color)
-            Text(tab.shortLabel, color = color, style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
         }
     }
 }

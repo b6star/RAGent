@@ -47,7 +47,7 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - Firestore Security Rules와 Collection Group 인덱스
 - 프로젝트 목록 Pull-to-Refresh
 
-### Phase 3 - AI 연동 및 고도화 (진행 중)
+### Phase 3 - AI 연동 및 고도화 (완료, 2026-08-29 06:13 KST)
 
 - Firebase Cloud Functions (TypeScript) 기반 `askAi` Endpoint 구축
 - 하이브리드 데이터 흐름: 개인 키는 Android 직접 호출, 개발자 키는 Cloud Function 호출
@@ -83,12 +83,12 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 사용자 인증 및 보안 규칙 검증
 - Gemini 개발자 키 보호와 `askAi` 스트리밍
 - 개인·개발자 키 사용량 서버 집계
-- 개발자 키 계정당 무료 500,000 토큰 제한
+- 개발자 키 계정별 설정된 무료 토큰 제한
 - 저비용 모델만 선택 가능: Gemini `gemini-3.5-flash-lite`, OpenAI `gpt-5.6-luna`
 
 ## 5. Phase 3 - AI 연동 및 고도화 상세 스텝
 
-현재 **하이브리드 아키텍처**를 기반으로 기능을 고도화하고 있다.
+현재 **하이브리드 아키텍처** 기반 Phase 3 구현을 완료했다.
 
 ### 스텝 1: UI 고도화 및 기초 연동 (완료)
 - `AgentTab` 세션 목록화 및 `AgentChatScreen` 독립
@@ -100,14 +100,17 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - Provider별 개인 API 키 Android Keystore 암호화 저장
 - 개인 키 Android 직접 호출과 개발자 키 Cloud Function 호출 분리
 - 개인·개발자 키 사용량 Firestore 서버 집계
-- 개발자 키 계정당 무료 500,000 토큰 제한 (`developerAiTotalTokens` 기준)
+- 개발자 키 계정별 설정된 토큰 제한 (`developerAiTotalTokens` 기준)
 - Gemini `gemini-3.5-flash-lite`, OpenAI `gpt-5.6-luna`만 선택 가능
 - OpenAI 실제 API 키 테스트는 키 확보 시 진행
 
-### 스텝 3: Android - 상세 통계 및 오류 UX (진행 중)
+### 스텝 3: Android - 상세 통계 및 오류 UX (완료)
 - 세션별 누적 토큰 및 유저 전체 통계 실시간 UI 반영
 - Provider·개인 키·개발자 키·네트워크·사용량 저장 오류 분류 및 안전한 사용자 안내 완료 (2026-08-29 06:13 KST)
-- 로딩 상태 정교화 예정
+- API 키·권한·모델·쿼터·레이트 리밋·입력·콘텐츠 차단·타임아웃·네트워크·Provider 장애·사용량 동기화 오류 분류 및 안전한 사용자 안내 완료
+- 스트리밍 취소 처리와 사용량 동기화 실패 시 답변 보존 처리 완료
+- 개발자 토큰 한도는 요청 시작 시 한도 미만이면 답변 완료와 사용량 저장까지 허용하고, 다음 요청부터 차단
+- OpenAI 실제 API 키 기기 테스트는 키 확보 후 별도 검증
 
 ## 5-1. AgentScreen IME 동반 이동 최종 주의사항
 
@@ -177,20 +180,23 @@ fun AgentChatScreen(/* existing parameters */) {
 
 ## 6. 이후 개발 순서
 
-### Phase 4 - 공개 Source 연결
-- 공개 GitHub Repository URL 수집
-- 공개 Notion Page URL 수집
-- Docs WebView와 Repository 탐색 연결
+### Phase 4 - 공개 GitHub·Notion Source 연결
+- 공개 URL 검증·정규화 및 Admin 수정 권한
+- Docs·Repository WebView 열람과 로딩·오류·재시도 처리
+- Source 접근 상태, 마지막 확인 시각, Content Hash와 중복 동기화 방지
+- 공통 Document·Metadata 모델로 후속 RAG 입력 준비
 
-### Phase 5 - RAG 연결
-- 변경된 Source만 Chunking 및 Gemini Embedding
+### Phase 5 - Provider-agnostic RAG 기반
+- 변경된 Source만 Chunking 및 Embedding
 - Firestore Vector Search (Top-K Retrieval)
+- 프로젝트 권한에 맞는 Source 필터링
 
-### Phase 6 - Gemini RAG Agent
-- 검색 Context를 Gemini Prompt에 연결하여 답변 및 출처 표시
+### Phase 6 - RAG Agent
+- 검색 Context를 사용자가 선택한 Gemini 또는 OpenAI 모델에 연결
+- 답변 출처와 원문 위치 표시
 
 ## 10. 현재 작업 위치
 
-- 완료: Phase 1, Phase 2
-- 완료: **Phase 3 / 스텝 1, 스텝 2**
-- 다음 작업: **Phase 3 / 스텝 3 사용량 통계 및 오류 UX**
+- 완료: Phase 1, Phase 2, Phase 3
+- Phase 3 종료일: **2026-08-29 06:13 KST**
+- 다음 작업: **Phase 4 / 공개 GitHub·Notion Source 연결**

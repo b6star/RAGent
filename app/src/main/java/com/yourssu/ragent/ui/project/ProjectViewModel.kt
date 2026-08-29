@@ -17,6 +17,8 @@ import com.yourssu.ragent.model.ProjectInviteDocument
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectMemberDocument
 import com.yourssu.ragent.model.ProjectVisibility
+import com.yourssu.ragent.model.PublicSourceUrl
+import com.yourssu.ragent.model.SourceUrlValidation
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.toProject
 import com.yourssu.ragent.model.toProjectMember
@@ -57,6 +59,11 @@ class ProjectViewModel : ViewModel() {
             return
         }
         val projectRef = Firebase.firestore.collection("projects").document(project.id)
+        val sourceValidation = PublicSourceUrl.validate(project.githubUrl, project.docsUrl)
+        if (sourceValidation !is SourceUrlValidation.Valid) {
+            onResult(false)
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -65,8 +72,8 @@ class ProjectViewModel : ViewModel() {
                         projectId = project.id,
                         name = project.name,
                         ownerId = user.uid,
-                        githubUrl = project.githubUrl,
-                        docsUrl = project.docsUrl,
+                        githubUrl = sourceValidation.githubUrl,
+                        docsUrl = sourceValidation.notionUrl,
                         visibility = project.visibility.name,
                         status = project.status.name
                     )
@@ -79,12 +86,60 @@ class ProjectViewModel : ViewModel() {
                 )
                 projectRef.collection("members").document(user.uid).set(owner).await()
                 projects = listOf(
-                    project.copy(myRole = Role.Admin, members = listOf(owner.toProjectMember(user.uid)))
+                    project.copy(
+                        myRole = Role.Admin,
+                        githubUrl = sourceValidation.githubUrl,
+                        docsUrl = sourceValidation.notionUrl,
+                        members = listOf(owner.toProjectMember(user.uid))
+                    )
                 ) + projects
                 onResult(true)
             } catch (e: Exception) {
                 Log.e("ProjectCreate", "Failed to create project", e)
                 onResult(false)
+            }
+        }
+    }
+
+    fun updateSourceLinks(
+        projectId: String,
+        githubUrl: String,
+        notionUrl: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        val validation = PublicSourceUrl.validate(githubUrl, notionUrl)
+        val valid = validation as? SourceUrlValidation.Valid ?: run {
+            val message = when (validation) {
+                SourceUrlValidation.InvalidGithub -> "GitHub 공개 Repository URL을 확인해 주세요."
+                SourceUrlValidation.InvalidNotion -> "Notion 공개 페이지 URL을 확인해 주세요."
+                is SourceUrlValidation.Valid -> null
+            }
+            onResult(false, message)
+            return
+        }
+        if (projects.firstOrNull { it.id == projectId }?.myRole != Role.Admin) {
+            onResult(false, "관리자만 Source 링크를 변경할 수 있습니다.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                Firebase.firestore.collection("projects").document(projectId)
+                    .update(
+                        mapOf(
+                            "githubUrl" to valid.githubUrl,
+                            "docsUrl" to valid.notionUrl,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+                projects = projects.map { project ->
+                    if (project.id == projectId) {
+                        project.copy(githubUrl = valid.githubUrl, docsUrl = valid.notionUrl)
+                    } else project
+                }
+                onResult(true, null)
+            } catch (e: Exception) {
+                Log.e("ProjectSource", "Failed to update source links", e)
+                onResult(false, "Source 링크를 저장하지 못했습니다.")
             }
         }
     }

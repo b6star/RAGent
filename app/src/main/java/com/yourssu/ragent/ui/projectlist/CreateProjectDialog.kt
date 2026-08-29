@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import java.util.UUID
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectVisibility
+import com.yourssu.ragent.model.PublicSourceUrl
+import com.yourssu.ragent.model.SourceUrlValidation
 import com.yourssu.ragent.model.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,7 @@ fun CreateProjectDialog(
     var docsUrl by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf(ProjectVisibility.Public) }
     var isSaving by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -56,13 +59,14 @@ fun CreateProjectDialog(
         ) {
             Text("새 프로젝트", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
             Text(
-                "Phase 1에서는 로컬 Mock으로 추가합니다.",
+                "공개 GitHub Repository와 Notion 문서를 연결할 수 있습니다.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("Project name") }, singleLine = true, shape = RoundedCornerShape(16.dp))
-            OutlinedTextField(githubUrl, { githubUrl = it }, Modifier.fillMaxWidth(), label = { Text("GitHub URL") }, singleLine = true, shape = RoundedCornerShape(16.dp))
-            OutlinedTextField(docsUrl, { docsUrl = it }, Modifier.fillMaxWidth(), label = { Text("Docs / Notion URL") }, singleLine = true, shape = RoundedCornerShape(16.dp))
+            OutlinedTextField(githubUrl, { githubUrl = it; validationError = null }, Modifier.fillMaxWidth(), label = { Text("GitHub 공개 Repository URL") }, singleLine = true, shape = RoundedCornerShape(16.dp), isError = validationError?.contains("GitHub") == true)
+            OutlinedTextField(docsUrl, { docsUrl = it; validationError = null }, Modifier.fillMaxWidth(), label = { Text("Notion 공개 페이지 URL") }, singleLine = true, shape = RoundedCornerShape(16.dp), isError = validationError?.contains("Notion") == true)
+            validationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 VisibilityChip("Public", visibility == ProjectVisibility.Public) { visibility = ProjectVisibility.Public }
                 VisibilityChip("Private", visibility == ProjectVisibility.Private) { visibility = ProjectVisibility.Private }
@@ -71,20 +75,28 @@ fun CreateProjectDialog(
                 enabled = name.isNotBlank() && !isSaving,
                 onClick = {
                     val projectName = name.trim()
-                    isSaving = true
-                    onCreate(
-                        Project(
-                            id = UUID.randomUUID().toString(),
-                            name = projectName,
-                            myRole = Role.Admin,
-                            githubUrl = githubUrl.trim(),
-                            docsUrl = docsUrl.trim(),
-                            visibility = visibility,
-                            members = emptyList()
-                        )
-                    ) { created ->
-                        isSaving = false
-                        if (created) onDismiss()
+                    when (val validation = PublicSourceUrl.validate(githubUrl, docsUrl)) {
+                        SourceUrlValidation.InvalidGithub -> validationError = "GitHub 공개 Repository URL을 확인해 주세요."
+                        SourceUrlValidation.InvalidNotion -> validationError = "Notion 공개 페이지 URL을 확인해 주세요."
+                        is SourceUrlValidation.Valid -> {
+                            validationError = null
+                            isSaving = true
+                            onCreate(
+                                Project(
+                                    id = UUID.randomUUID().toString(),
+                                    name = projectName,
+                                    myRole = Role.Admin,
+                                    githubUrl = validation.githubUrl,
+                                    docsUrl = validation.notionUrl,
+                                    visibility = visibility,
+                                    members = emptyList()
+                                )
+                            ) { created ->
+                                isSaving = false
+                                if (created) onDismiss()
+                                else validationError = "프로젝트를 저장하지 못했습니다."
+                            }
+                        }
                     }
                 },
                 modifier = Modifier
