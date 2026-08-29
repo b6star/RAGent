@@ -30,6 +30,7 @@ import com.yourssu.ragent.ui.chat.ChatRoute
 import com.yourssu.ragent.ui.person.PersonDetailScreen
 import com.yourssu.ragent.ui.project.AgentTab
 import com.yourssu.ragent.ui.project.AgentViewModel
+import com.yourssu.ragent.ui.project.AiSelectionDraft
 import com.yourssu.ragent.ui.project.ProjectHomeScreen
 import com.yourssu.ragent.ui.project.ProjectInviteDialog
 import com.yourssu.ragent.ui.project.ProjectViewModel
@@ -119,6 +120,20 @@ fun RAGentNavigator(
                 },
                 onProjectChatClick = {
                     screen = AppScreen.Chat(project.name, "Project messages", project = project, listMode = true)
+                },
+                onAiSelectClick = { },
+                onLoadAiSessions = agentViewModel::loadSessions,
+                aiSessions = agentViewModel.sessions,
+                onAiSelectExisting = { rect, sourceUrl, kind, session ->
+                    agentViewModel.updatePendingSelection(AiSelectionDraft(project.id, sourceUrl, kind, rect.left, rect.top, rect.right, rect.bottom))
+                    agentViewModel.selectSession(project.id, session.id)
+                    screen = AppScreen.AgentChat(project)
+                },
+                onAiSelectNew = { rect, sourceUrl, kind ->
+                    agentViewModel.updatePendingSelection(AiSelectionDraft(project.id, sourceUrl, kind, rect.left, rect.top, rect.right, rect.bottom))
+                    agentViewModel.startNewSession(project.id, "AI Select") {
+                        screen = AppScreen.AgentChat(project)
+                    }
                 },
                 onMemberChatClick = { member ->
                     screen = AppScreen.Chat(

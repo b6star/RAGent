@@ -44,6 +44,16 @@ data class AiChatSession(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+data class AiSelectionDraft(
+    val projectId: String,
+    val sourceUrl: String,
+    val kind: AiSelectionKind,
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+)
+
 data class AiChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val sessionId: String,
@@ -85,6 +95,16 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     
     var currentSessionId by mutableStateOf<String?>(null)
         private set
+    var pendingSelection by mutableStateOf<AiSelectionDraft?>(null)
+        private set
+
+    fun updatePendingSelection(selection: AiSelectionDraft) {
+        pendingSelection = selection
+    }
+
+    fun clearPendingSelection() {
+        pendingSelection = null
+    }
 
     var selectedModelId by mutableStateOf<String?>(null)
         private set

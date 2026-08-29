@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.geometry.Rect
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectTab
@@ -72,6 +73,11 @@ fun ProjectHomeScreen(
     membersScrollOffset: Int,
     onMembersScrollPositionChange: (Int, Int) -> Unit,
     onProjectChatClick: () -> Unit,
+    onAiSelectClick: () -> Unit,
+    onLoadAiSessions: (String) -> Unit,
+    aiSessions: List<AiChatSession>,
+    onAiSelectExisting: (Rect, String, AiSelectionKind, AiChatSession) -> Unit,
+    onAiSelectNew: (Rect, String, AiSelectionKind) -> Unit,
     onMemberChatClick: (ProjectMember) -> Unit,
     onMemberClick: (ProjectMember) -> Unit,
     onMemberRoleChange: (ProjectMember, Role) -> Unit,
@@ -86,6 +92,12 @@ fun ProjectHomeScreen(
     var showDetails by remember { mutableStateOf(false) }
     var showRefreshComplete by remember { mutableStateOf(false) }
     var wasLoading by remember { mutableStateOf(false) }
+    var aiSelectMode by remember { mutableStateOf(false) }
+    var pendingExistingSelection by remember { mutableStateOf<Triple<Rect, String, AiSelectionKind>?>(null) }
+
+    LaunchedEffect(project.id) {
+        onLoadAiSessions(project.id)
+    }
 
     LaunchedEffect(isLoading) {
         if (wasLoading && !isLoading && errorMessage == null) {
@@ -115,7 +127,8 @@ fun ProjectHomeScreen(
                     horizontalPadding = 16.dp,
                     onBack = onBack,
                     onDetailsClick = { showDetails = true },
-                    onChatClick = onProjectChatClick
+                    onChatClick = onProjectChatClick,
+                    onAiSelectClick = { aiSelectMode = !aiSelectMode; onAiSelectClick() }
                 )
                 Box(Modifier.fillMaxSize()) {
                     DocsTab(project, onBack, visible = selectedTab == ProjectTab.Docs)
@@ -229,6 +242,30 @@ fun ProjectHomeScreen(
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             ProjectBottomBar(selectedTab, onTabSelected)
         }
+        if (aiSelectMode && (selectedTab == ProjectTab.Docs || selectedTab == ProjectTab.Repository)) {
+            AiSelectOverlay(
+                onDismiss = { aiSelectMode = false },
+                onAskExisting = { rect, kind ->
+                    pendingExistingSelection = Triple(rect, if (selectedTab == ProjectTab.Docs) project.docsUrl else project.githubUrl, kind)
+                    aiSelectMode = false
+                },
+                onAskNew = { rect, kind ->
+                    onAiSelectNew(rect, if (selectedTab == ProjectTab.Docs) project.docsUrl else project.githubUrl, kind)
+                    aiSelectMode = false
+                }
+            )
+        }
+    }
+
+    pendingExistingSelection?.let { pending ->
+        AiConversationPickerDialog(
+            sessions = aiSessions.filter { it.projectId == project.id },
+            onDismiss = { pendingExistingSelection = null },
+            onSelect = { session ->
+                onAiSelectExisting(pending.first, pending.second, pending.third, session)
+                pendingExistingSelection = null
+            }
+        )
     }
 
     if (showDetails) {
@@ -262,7 +299,8 @@ private fun ProjectHeader(
     horizontalPadding: Dp,
     onBack: () -> Unit,
     onDetailsClick: () -> Unit,
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    onAiSelectClick: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth().height(38.dp).padding(horizontal = horizontalPadding), verticalAlignment = Alignment.CenterVertically) {
         CircleButton(onClick = onBack, icon = AppIcon.Back)
@@ -280,6 +318,8 @@ private fun ProjectHeader(
                 overflow = TextOverflow.Ellipsis
             )
         }
+        CircleButton(onClick = onAiSelectClick, icon = AppIcon.AiSelect)
+        Spacer(Modifier.width(6.dp))
         CircleButton(onClick = onChatClick, icon = AppIcon.ChatList)
         Spacer(Modifier.width(10.dp))
         CircleButton(onClick = onDetailsClick, icon = AppIcon.More)
