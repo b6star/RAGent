@@ -56,6 +56,49 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 마크다운 렌더링 지원 및 AI 응답 메타데이터 표시
 - 사용자별 AI 사용량(토큰) 서버 기반 실시간 집계 기초 로직
 
+### Phase 4 - 공개 GitHub·Notion Source 연결 (Step 1~2 완료, 2026-08-30 KST)
+
+#### Step 1: Public Source Link Management와 WebView (완료)
+
+- 프로젝트 상세 화면에서 공개 GitHub·Notion URL 수정 및 원문 열기
+- URL 변경 시 서버에 저장된 기존 RAG 정보가 삭제될 수 있음을 경고하고 사용자 확인 후 저장
+- Docs·Repository 탭을 Android WebView로 연결하고 GitHub·Notion 간 이동 상태 유지
+- Members·Agent 탭 및 Agent 대화 화면 왕복 후에도 WebView 인스턴스와 방문 위치 복원
+- WebView 방문 기록이 없을 때 프로젝트 화면이 종료되지 않도록 뒤로가기 처리
+- Notion 공개 페이지 표시·스크롤을 위한 전용 CSS 보정
+- 상태 표시줄 inset, 공통 헤더 높이, 아이콘 전용 하단 내비게이션과 edge-to-edge WebView 적용
+
+#### Step 2: WebView Source Location Anchoring과 Agent 연결 (완료)
+
+- AI Select 오버레이에서 드래그 영역, 텍스트·이미지 모드, 기존·새 대화 선택 제공
+- 선택 테두리의 회전 그라데이션과 비선택 영역의 은은한 AI 처리 효과 적용
+- 비선택 영역 터치와 Android 뒤로가기로 선택 취소
+- 선택 좌표를 Overlay/Home 좌표에서 WebView viewport 좌표로 변환
+- `source_webview.js`의 `elementFromPoint(x, y)`로 실제 화면에 그려진 DOM 요소를 찾고 부모를 탐색
+- Notion은 block ID·여러 canonical URL, GitHub는 file path·line range·README heading path 추출
+- 선택 결과를 `AiSelectionDraft`로 Agent에 전달하되 바로 전송하지 않고 사용자가 질문을 추가하도록 구성
+- 선택 텍스트와 원문 링크를 입력창·메시지 위의 출처 캡션으로 저장하고 다시 열람 가능
+- 선택 이미지는 WebView drawing cache 대신 Android Window의 PixelCopy 결과를 선택 영역으로 crop
+- 로딩 완료 대기, 단색·빈 Bitmap 감지, 최대 3회 재시도로 잘못된 캡처 방지
+- 갤러리 다중 이미지, 파일, 카메라 입력과 함께 Base64 검증 후 Gemini·OpenAI 멀티모달 요청 지원
+- 첨부 원본은 Firebase Storage, URI·MIME type·파일명·크기는 Firestore 메시지에 저장
+- 전송 없이 화면을 벗어나면 선택 Draft를 폐기하고 선택으로 만든 새 빈 세션도 삭제
+
+Source anchoring의 핵심 흐름은 다음과 같다.
+
+```mermaid
+flowchart TD
+    A["사용자가 화면 영역 선택"] --> B["Overlay 좌표 계산"]
+    B --> C["WebView viewport 좌표로 변환"]
+    C --> D["elementFromPoint로 DOM 요소 탐색"]
+    D --> E["부모 요소를 따라 Source 구조 탐색"]
+    E --> F1["Notion block ID / canonical URL"]
+    E --> F2["GitHub file / line / heading"]
+    F1 --> G["AiSelectionDraft"]
+    F2 --> G
+    G --> H["사용자 질문과 함께 Agent 전송"]
+```
+
 ## 3. 현재 Firebase 구조
 
 | 경로 | 용도 |
@@ -64,6 +107,7 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 | `users/{uid}/ai_usage/{usageId}` | 요청별 Provider, 모델, 키 출처와 토큰 사용량 |
 | `users/{uid}/ai_chats/{projectId}/sessions/{sessionId}` | 프로젝트별 AI 채팅 세션 정보 |
 | `users/{uid}/ai_chats/{projectId}/sessions/{sessionId}/messages/{messageId}` | 개별 대화 내역 (하이브리드 저장) |
+| `users/{uid}/ai_attachments/{projectId}/{sessionId}/{fileName}` | Agent 첨부 이미지·파일 원본 (Firebase Storage) |
 | `projects/{projectId}` | 프로젝트 공용 정보와 연결 URL |
 | `projects/{projectId}/members/{uid}` | 사용자 역할과 참여 정보 |
 | `projects/{projectId}/invites/{inviteId}` | Member 또는 Viewer 초대 정보 |
@@ -77,6 +121,9 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 프로젝트 생성 및 관리 UI
 - Agent 질문 전송과 답변 표시 (Glassmorphism UI)
 - Provider별 개인 API 키 암호화 저장과 Gemini·OpenAI 직접 스트리밍 호출
+- GitHub·Notion WebView 수명 주기, 방문 기록과 표시 상태 유지
+- AI Select 좌표 변환, JavaScript Bridge 호출과 Source anchor 표시
+- PixelCopy 선택 영역 캡처, 첨부 Base64 검증과 Storage 업로드
 
 ### Firebase 서버
 
@@ -85,6 +132,8 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 개인·개발자 키 사용량 서버 집계
 - 개발자 키 계정별 설정된 무료 토큰 제한
 - 저비용 모델만 선택 가능: Gemini `gemini-3.5-flash-lite`, OpenAI `gpt-5.6-luna`
+- 개발자 키 요청의 텍스트·이미지·파일 멀티모달 입력 전달
+- 다음 단계에서 공개 Source 접근·변경 상태와 Content Hash 관리
 
 ## 5. Phase 3 - AI 연동 및 고도화 상세 스텝
 
@@ -181,10 +230,10 @@ fun AgentChatScreen(/* existing parameters */) {
 ## 6. 이후 개발 순서
 
 ### Phase 4 - 공개 GitHub·Notion Source 연결
-- 공개 URL 검증·정규화 및 Admin 수정 권한
-- Docs·Repository WebView 열람과 로딩·오류·재시도 처리
-- Source 접근 상태, 마지막 확인 시각, Content Hash와 중복 동기화 방지
-- 공통 Document·Metadata 모델로 후속 RAG 입력 준비
+- Step 1 완료: 공개 URL 관리와 Docs·Repository WebView
+- Step 2 완료: 화면 선택, Source 위치 anchoring, Agent 텍스트·이미지 첨부
+- Step 3 예정: Source 접근 상태, 마지막 확인 시각, Content Hash와 중복 확인 방지
+- Step 4 예정: 공통 Document·Metadata 모델로 후속 RAG 입력 준비
 
 ### Phase 5 - Provider-agnostic RAG 기반
 - 변경된 Source만 Chunking 및 Embedding
@@ -197,6 +246,27 @@ fun AgentChatScreen(/* existing parameters */) {
 
 ## 10. 현재 작업 위치
 
-- 완료: Phase 1, Phase 2, Phase 3
+- 완료: Phase 1, Phase 2, Phase 3, Phase 4 Step 1~2
 - Phase 3 종료일: **2026-08-29 06:13 KST**
-- 다음 작업: **Phase 4 / 공개 GitHub·Notion Source 연결**
+- Phase 4 Step 2 종료일: **2026-08-30 KST**
+- 다음 작업: **Phase 4 Step 3 / Public Source Sync Status**
+
+### 새 대화 시작용 다음 작업 요약
+
+목표는 아직 Source 본문을 Chunking하거나 Embedding하는 것이 아니라, 연결된 공개 GitHub·Notion Source를 서버가 안전하게 확인하고 상태를 공유하는 것이다.
+
+1. Cloud Function에 GitHub·Notion 공개 URL 접근 확인 로직을 추가한다.
+2. `projects/{projectId}` 또는 Source 하위 문서에 `status`, `lastCheckedAt`, `lastChangedAt`, `contentHash`, `lastError`를 저장한다.
+3. 동일 URL을 짧은 시간 안에 반복 확인하지 않도록 dedupe와 throttle 정책을 둔다.
+4. 프로젝트 UI에 확인 중·정상·변경됨·오류 상태, 마지막 확인 시각과 재시도 동작을 표시한다.
+5. 접근 확인과 Content Hash 비교를 검증한 뒤 Step 4의 공통 Document·Metadata 정규화로 넘어간다.
+
+다음 작업에서 반드시 보존할 사항:
+
+- 공개 URL 우선 원칙과 Admin 수정 권한
+- WebView 인스턴스·방문 위치·뒤로가기 동작
+- `source_webview.js`의 Notion/GitHub 분리 추출 로직과 기존 anchor 필드
+- PixelCopy crop 좌표와 빈·단색 이미지 재시도
+- 전송하지 않은 Selection Draft 및 새 빈 세션 정리
+- 첨부당 10MB, 요청 합계 20MB 제한과 Base64 유효성 검사
+- 기존 AgentScreen IME anchor 동반 이동 로직
