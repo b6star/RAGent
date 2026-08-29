@@ -44,6 +44,7 @@ enum class AiSelectionKind { Text, Image }
 @Composable
 fun AiSelectOverlay(
     onDismiss: () -> Unit,
+    onSelectionChanged: (Rect) -> Unit = {},
     onAskExisting: (Rect, AiSelectionKind) -> Unit,
     onAskNew: (Rect, AiSelectionKind) -> Unit
 ) {
@@ -61,7 +62,10 @@ fun AiSelectOverlay(
                     selection = Rect(start, change.position)
                     change.consume()
                 },
-                onDragEnd = { dragStart = null }
+                onDragEnd = {
+                    dragStart = null
+                    selection?.let(onSelectionChanged)
+                }
             )
         }) {
             drawRect(Color.Black.copy(alpha = 0.16f))

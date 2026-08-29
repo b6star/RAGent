@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 
 @Composable
-fun RepositoryTab(project: Project, onExit: () -> Unit, visible: Boolean = true) {
-    SourceWebView(project.githubUrl, "GitHub Repository 연결 없음", onExit, visible, darkTheme = isSystemInDarkTheme(), stateKey = "${project.id}:github")
+fun RepositoryTab(project: Project, onExit: () -> Unit, visible: Boolean = true, selectionRequest: SourceSelectionRequest? = null, onSelectionResolved: (SourceSelectionResult) -> Unit = {}, onSelectionImageCaptured: (AiAttachment) -> Unit = {}) {
+    SourceWebView(project.githubUrl, "GitHub Repository 연결 없음", onExit, visible, darkTheme = isSystemInDarkTheme(), stateKey = "${project.id}:github", selectionRequest = selectionRequest, onSelectionResolved = onSelectionResolved)
     return
     Column(
         modifier = Modifier

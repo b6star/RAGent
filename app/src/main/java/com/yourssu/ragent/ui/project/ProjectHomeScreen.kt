@@ -1,5 +1,6 @@
 package com.yourssu.ragent.ui.project
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -76,8 +77,8 @@ fun ProjectHomeScreen(
     onAiSelectClick: () -> Unit,
     onLoadAiSessions: (String) -> Unit,
     aiSessions: List<AiChatSession>,
-    onAiSelectExisting: (Rect, String, AiSelectionKind, AiChatSession) -> Unit,
-    onAiSelectNew: (Rect, String, AiSelectionKind) -> Unit,
+    onAiSelectExisting: (Rect, String, AiSelectionKind, SourceSelectionResult?, AiChatSession) -> Unit,
+    onAiSelectNew: (Rect, String, AiSelectionKind, SourceSelectionResult?) -> Unit,
     onMemberChatClick: (ProjectMember) -> Unit,
     onMemberClick: (ProjectMember) -> Unit,
     onMemberRoleChange: (ProjectMember, Role) -> Unit,
@@ -94,6 +95,8 @@ fun ProjectHomeScreen(
     var wasLoading by remember { mutableStateOf(false) }
     var aiSelectMode by remember { mutableStateOf(false) }
     var pendingExistingSelection by remember { mutableStateOf<Triple<Rect, String, AiSelectionKind>?>(null) }
+    var sourceSelectionRequest by remember { mutableStateOf<SourceSelectionRequest?>(null) }
+    var resolvedSourceSelection by remember { mutableStateOf<SourceSelectionResult?>(null) }
 
     LaunchedEffect(project.id) {
         onLoadAiSessions(project.id)
@@ -131,8 +134,26 @@ fun ProjectHomeScreen(
                     onAiSelectClick = { aiSelectMode = !aiSelectMode; onAiSelectClick() }
                 )
                 Box(Modifier.fillMaxSize()) {
-                    DocsTab(project, onBack, visible = selectedTab == ProjectTab.Docs)
-                    RepositoryTab(project, onBack, visible = selectedTab == ProjectTab.Repository)
+                    DocsTab(
+                        project,
+                        onBack,
+                        visible = selectedTab == ProjectTab.Docs,
+                        selectionRequest = if (selectedTab == ProjectTab.Docs) sourceSelectionRequest else null,
+                        onSelectionResolved = {
+                            resolvedSourceSelection = it
+                            Log.d("SourceWebView", "ProjectHome received selection: $it")
+                        }
+                    )
+                    RepositoryTab(
+                        project,
+                        onBack,
+                        visible = selectedTab == ProjectTab.Repository,
+                        selectionRequest = if (selectedTab == ProjectTab.Repository) sourceSelectionRequest else null,
+                        onSelectionResolved = {
+                            resolvedSourceSelection = it
+                            Log.d("SourceWebView", "ProjectHome received selection: $it")
+                        }
+                    )
                     when (selectedTab) {
                         ProjectTab.Docs, ProjectTab.Repository -> Unit
                         ProjectTab.Members -> MembersTab(
@@ -244,13 +265,21 @@ fun ProjectHomeScreen(
         }
         if (aiSelectMode && (selectedTab == ProjectTab.Docs || selectedTab == ProjectTab.Repository)) {
             AiSelectOverlay(
-                onDismiss = { aiSelectMode = false },
+                onDismiss = { aiSelectMode = false; sourceSelectionRequest = null },
+                onSelectionChanged = { rect ->
+                    sourceSelectionRequest = SourceSelectionRequest(rect.left, rect.top, rect.right, rect.bottom)
+                },
                 onAskExisting = { rect, kind ->
                     pendingExistingSelection = Triple(rect, if (selectedTab == ProjectTab.Docs) project.docsUrl else project.githubUrl, kind)
                     aiSelectMode = false
                 },
                 onAskNew = { rect, kind ->
-                    onAiSelectNew(rect, if (selectedTab == ProjectTab.Docs) project.docsUrl else project.githubUrl, kind)
+                    onAiSelectNew(
+                        rect,
+                        if (selectedTab == ProjectTab.Docs) project.docsUrl else project.githubUrl,
+                        kind,
+                        resolvedSourceSelection
+                    )
                     aiSelectMode = false
                 }
             )
@@ -262,7 +291,13 @@ fun ProjectHomeScreen(
             sessions = aiSessions.filter { it.projectId == project.id },
             onDismiss = { pendingExistingSelection = null },
             onSelect = { session ->
-                onAiSelectExisting(pending.first, pending.second, pending.third, session)
+                onAiSelectExisting(
+                    pending.first,
+                    pending.second,
+                    pending.third,
+                    resolvedSourceSelection,
+                    session
+                )
                 pendingExistingSelection = null
             }
         )

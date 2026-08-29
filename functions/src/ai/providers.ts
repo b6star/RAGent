@@ -16,6 +16,11 @@ export type AiGenerationResult = {
 
 export type AiTextChunkHandler = (text: string) => Promise<void>;
 
+export type AiInlineAttachment = {
+  mimeType: string;
+  dataBase64: string;
+};
+
 /** Normalized error emitted after a streaming request has started. */
 class ProviderStreamError extends Error {
   status?: number;
@@ -61,16 +66,17 @@ export async function streamAiResponse(
   apiKey: string,
   onChunk: AiTextChunkHandler,
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments: AiInlineAttachment[] = []
 ): Promise<AiGenerationResult> {
   if (!model) {
     throw new Error("Model ID is required");
   }
   switch (provider) {
   case "gemini":
-    return streamGeminiResponse(prompt, apiKey, onChunk, model, signal);
+    return streamGeminiResponse(prompt, apiKey, onChunk, model, signal, attachments);
   case "openai":
-    return streamOpenAiResponse(prompt, apiKey, onChunk, model, signal);
+    return streamOpenAiResponse(prompt, apiKey, onChunk, model, signal, attachments);
   }
 }
 
@@ -88,12 +94,24 @@ async function streamGeminiResponse(
   apiKey: string,
   onChunk: AiTextChunkHandler,
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments: AiInlineAttachment[] = []
 ): Promise<AiGenerationResult> {
   const client = new GoogleGenAI({apiKey});
   const result = await client.models.generateContentStream({
     model: model,
-    contents: prompt,
+    contents: [{
+      role: "user",
+      parts: [
+        {text: prompt},
+        ...attachments.map((attachment) => ({
+          inlineData: {
+            mimeType: attachment.mimeType,
+            data: attachment.dataBase64,
+          },
+        })),
+      ],
+    }],
     config: {abortSignal: signal},
   });
   let text = "";
@@ -149,12 +167,25 @@ async function streamOpenAiResponse(
   apiKey: string,
   onChunk: AiTextChunkHandler,
   model: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachments: AiInlineAttachment[] = []
 ): Promise<AiGenerationResult> {
   const client = new OpenAI({apiKey});
+  const content = [
+    {type: "input_text" as const, text: prompt},
+    ...attachments.map((attachment) => attachment.mimeType.startsWith("image/") ? {
+      type: "input_image" as const,
+      image_url: `data:${attachment.mimeType};base64,${attachment.dataBase64}`,
+      detail: "auto" as const,
+    } : {
+      type: "input_file" as const,
+      filename: "attachment",
+      file_data: `data:${attachment.mimeType};base64,${attachment.dataBase64}`,
+    }),
+  ];
   const stream = await client.responses.create({
     model: model,
-    input: prompt,
+    input: [{role: "user", content}],
     stream: true,
   }, {signal});
 

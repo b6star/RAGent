@@ -124,15 +124,37 @@ fun RAGentNavigator(
                 onAiSelectClick = { },
                 onLoadAiSessions = agentViewModel::loadSessions,
                 aiSessions = agentViewModel.sessions,
-                onAiSelectExisting = { rect, sourceUrl, kind, session ->
-                    agentViewModel.updatePendingSelection(AiSelectionDraft(project.id, sourceUrl, kind, rect.left, rect.top, rect.right, rect.bottom))
+                onAiSelectExisting = { rect, sourceUrl, kind, sourceSelection, session ->
                     agentViewModel.selectSession(project.id, session.id)
-                    screen = AppScreen.AgentChat(project)
+                    val selection = AiSelectionDraft(
+                        sessionId = session.id,
+                        projectId = project.id,
+                        sourceUrl = sourceUrl,
+                        kind = kind,
+                        left = rect.left,
+                        top = rect.top,
+                        right = rect.right,
+                        bottom = rect.bottom,
+                        sourceSelection = sourceSelection
+                    )
+                    agentViewModel.updatePendingSelection(selection)
+                    screen = AppScreen.AgentChat(project, selection)
                 },
-                onAiSelectNew = { rect, sourceUrl, kind ->
-                    agentViewModel.updatePendingSelection(AiSelectionDraft(project.id, sourceUrl, kind, rect.left, rect.top, rect.right, rect.bottom))
-                    agentViewModel.startNewSession(project.id, "AI Select") {
-                        screen = AppScreen.AgentChat(project)
+                onAiSelectNew = { rect, sourceUrl, kind, sourceSelection ->
+                    agentViewModel.startNewSession(project.id, "AI Select") { session ->
+                        val selection = AiSelectionDraft(
+                            sessionId = session.id,
+                            projectId = project.id,
+                            sourceUrl = sourceUrl,
+                            kind = kind,
+                            left = rect.left,
+                            top = rect.top,
+                            right = rect.right,
+                            bottom = rect.bottom,
+                            sourceSelection = sourceSelection
+                        )
+                        agentViewModel.updatePendingSelection(selection)
+                        screen = AppScreen.AgentChat(project, selection)
                     }
                 },
                 onMemberChatClick = { member ->
@@ -221,6 +243,7 @@ fun RAGentNavigator(
             AgentChatScreen(
                 project = current.project,
                 viewModel = agentViewModel,
+                initialSelection = current.selection,
                 onBack = { screen = AppScreen.ProjectHome(current.project) }
             )
         }

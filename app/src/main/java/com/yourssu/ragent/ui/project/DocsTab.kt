@@ -16,8 +16,8 @@ import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.PublicSourceUrl
 
 @Composable
-fun DocsTab(project: Project, onExit: () -> Unit, visible: Boolean = true) {
-    SourceWebView(project.docsUrl, "Notion 문서 연결 없음", onExit, visible, applyNotionScrollFix = true, darkTheme = isSystemInDarkTheme(), stateKey = "${project.id}:notion")
+fun DocsTab(project: Project, onExit: () -> Unit, visible: Boolean = true, selectionRequest: SourceSelectionRequest? = null, onSelectionResolved: (SourceSelectionResult) -> Unit = {}, onSelectionImageCaptured: (AiAttachment) -> Unit = {}) {
+    SourceWebView(project.docsUrl, "Notion 문서 연결 없음", onExit, visible, applyNotionScrollFix = true, darkTheme = isSystemInDarkTheme(), stateKey = "${project.id}:notion", selectionRequest = selectionRequest, onSelectionResolved = onSelectionResolved)
     return
     Column(
         modifier = Modifier

@@ -5,6 +5,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {
   AiProvider,
+  AiInlineAttachment,
   streamAiResponse,
   isAiProvider,
 } from "./ai/providers";
@@ -400,6 +401,15 @@ export const askAi = onCall({
     request.data.projectId.trim() : "";
   const sessionIdValue = typeof request.data?.sessionId === "string" ?
     request.data.sessionId.trim() : "";
+  const attachments: AiInlineAttachment[] = Array.isArray(request.data?.attachments) ?
+    request.data.attachments
+      .filter((item: any) => typeof item?.mimeType === "string" && typeof item?.dataBase64 === "string")
+      .map((item: any) => ({mimeType: item.mimeType, dataBase64: item.dataBase64})) : [];
+  const encodedAttachmentBytes = attachments.reduce(
+    (total, item) => total + Math.floor(item.dataBase64.length * 0.75), 0);
+  if (encodedAttachmentBytes > 20 * 1024 * 1024) {
+    throw new HttpsError("invalid-argument", "첨부 파일 전체 용량은 20MB 이하여야 합니다.");
+  }
   if (!prompt) {
     throw new HttpsError("invalid-argument", "질문이 누락되었습니다.");
   }
@@ -462,7 +472,8 @@ export const askAi = onCall({
         }
       },
       developerModel,
-      response?.signal
+      response?.signal,
+      attachments
     );
   } catch (error) {
     logger.error("Stream AI response failed", {provider, uid});
