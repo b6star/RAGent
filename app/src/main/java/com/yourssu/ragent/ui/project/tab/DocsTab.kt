@@ -1,5 +1,6 @@
 package com.yourssu.ragent.ui.project
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.PublicSourceUrl
+import com.yourssu.ragent.ui.agent.theme.AgentTheme
 
 @Composable
 fun DocsTab(project: Project, onExit: () -> Unit, visible: Boolean = true, selectionRequest: SourceSelectionRequest? = null, onSelectionResolved: (SourceSelectionResult) -> Unit = {}, onSelectionImageCaptured: (AiAttachment) -> Unit = {}) {
@@ -22,7 +24,8 @@ fun DocsTab(project: Project, onExit: () -> Unit, visible: Boolean = true, selec
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .background(AgentTheme.colors.background),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(PublicSourceUrl.notionCaption(project.docsUrl), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

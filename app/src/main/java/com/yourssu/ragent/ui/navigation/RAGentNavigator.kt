@@ -154,7 +154,7 @@ fun RAGentNavigator(
                             sourceSelection = sourceSelection
                         )
                         agentViewModel.updatePendingSelection(selection)
-                        screen = AppScreen.AgentChat(project, selection)
+                        screen = AppScreen.AgentChat(project, selection, discardIfEmpty = true)
                     }
                 },
                 onMemberChatClick = { member ->
@@ -244,7 +244,14 @@ fun RAGentNavigator(
                 project = current.project,
                 viewModel = agentViewModel,
                 initialSelection = current.selection,
-                onBack = { screen = AppScreen.ProjectHome(current.project) }
+                onBack = {
+                    // 선택 후 전송하지 않고 나가면 선택 텍스트/이미지 컨텍스트를 폐기한다.
+                    agentViewModel.clearPendingSelection()
+                    if (current.discardIfEmpty) {
+                        agentViewModel.discardSessionIfEmpty(current.project.id, agentViewModel.currentSessionId)
+                    }
+                    screen = AppScreen.ProjectHome(current.project)
+                }
             )
         }
 

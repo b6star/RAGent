@@ -1,9 +1,13 @@
 package com.yourssu.ragent.ui.project
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.graphics.Bitmap
-import android.graphics.Canvas
+import android.view.Window
+import android.view.PixelCopy
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.net.Uri
 import android.util.Log
 import android.util.Base64
@@ -18,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.viewinterop.AndroidView
@@ -88,6 +93,7 @@ fun SourceWebView(
     }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
+    val captureWindow = (LocalContext.current as? Activity)?.window
     var requestedUrl by remember { mutableStateOf<String?>(null) }
     var handledSelectionKey by remember { mutableStateOf<String?>(null) }
 
@@ -133,7 +139,7 @@ fun SourceWebView(
             selectionRequest?.let { request ->
                 if (handledSelectionKey != request.key) {
                     handledSelectionKey = request.key
-                    view.resolveSourceSelection(request, url, onSelectionResolved, onSelectionImageCaptured)
+                    view.resolveSourceSelection(request, url, captureWindow, onSelectionResolved, onSelectionImageCaptured)
                 }
             }
         }
@@ -169,6 +175,7 @@ private fun WebView.applyPageStyles(applyNotionScrollFix: Boolean, darkTheme: Bo
 private fun WebView.resolveSourceSelection(
     request: SourceSelectionRequest,
     sourceUrl: String,
+    captureWindow: Window?,
     onResolved: (SourceSelectionResult) -> Unit,
     onImageCaptured: (AiAttachment) -> Unit
 ) {
@@ -232,8 +239,7 @@ private fun WebView.resolveSourceSelection(
                     for (index in 0 until headings.length()) {
                         add(headings.optString(index))
                     }
-                },
-                capturedImage = captureSelectionImage(request)
+                }
             )
         }.onSuccess { result ->
             Log.d(
@@ -244,40 +250,96 @@ private fun WebView.resolveSourceSelection(
                     "canonicalUrl=${result.canonicalUrl} " +
                     "textPreview=${result.selectedText?.replace("\n", " ")?.take(160)}"
             )
-            result.capturedImage?.let(onImageCaptured)
-            onResolved(result)
+            captureSelectionImageWithRetry(request, captureWindow) { image ->
+                val resolved = result.copy(capturedImage = image)
+                image?.let(onImageCaptured)
+                onResolved(resolved)
+            }
         }.onFailure { error ->
             Log.e(SOURCE_WEBVIEW_TAG, "failed to parse selection result: $value", error)
         }
     }
 }
 
-private fun WebView.captureSelectionImage(request: SourceSelectionRequest): AiAttachment? {
-    if (width <= 0 || height <= 0) return null
-    val location = IntArray(2).also { getLocationOnScreen(it) }
+private fun WebView.captureSelectionImageWithRetry(
+    request: SourceSelectionRequest,
+    captureWindow: Window?,
+    attemptsLeft: Int = 3,
+    onComplete: (AiAttachment?) -> Unit
+) {
+    if (progress < 100 || captureWindow == null) {
+        if (attemptsLeft <= 1) onComplete(null) else Handler(Looper.getMainLooper()).postDelayed(
+            { captureSelectionImageWithRetry(request, captureWindow, attemptsLeft - 1, onComplete) }, 300L)
+        return
+    }
+    captureSelectionImage(request, captureWindow) { image ->
+        if (image != null || attemptsLeft <= 1) {
+            onComplete(image)
+        } else {
+        Handler(Looper.getMainLooper()).postDelayed(
+            { captureSelectionImageWithRetry(request, captureWindow, attemptsLeft - 1, onComplete) },
+            300L
+        )
+        }
+    }
+}
+
+private fun WebView.captureSelectionImage(
+    request: SourceSelectionRequest,
+    captureWindow: Window?,
+    onComplete: (AiAttachment?) -> Unit
+) {
+    if (width <= 0 || height <= 0 || captureWindow == null) { onComplete(null); return }
     val rootLocation = IntArray(2).also { rootView.getLocationOnScreen(it) }
-    val left = (request.left + rootLocation[0] - location[0]).coerceIn(0f, (width - 1).coerceAtLeast(0).toFloat())
-    val top = (request.top + rootLocation[1] - location[1]).coerceIn(0f, (height - 1).coerceAtLeast(0).toFloat())
-    val right = (request.right + rootLocation[0] - location[0]).coerceIn(left + 1f, width.toFloat())
-    val bottom = (request.bottom + rootLocation[1] - location[1]).coerceIn(top + 1f, height.toFloat())
-    val full = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    // capturePicture renders the document from its origin. Translate it by the
-    // current scroll offset so the crop coordinates refer to the visible page.
-    val canvas = Canvas(full)
-    canvas.translate(-scrollX.toFloat(), -scrollY.toFloat())
-    capturePicture().draw(canvas)
-    val crop = Bitmap.createBitmap(full, left.toInt(), top.toInt(), (right - left).toInt(), (bottom - top).toInt())
-    full.recycle()
+    val left = (request.left + rootLocation[0]).toInt().coerceAtLeast(0)
+    val top = (request.top + rootLocation[1]).toInt().coerceAtLeast(0)
+    val right = (request.right + rootLocation[0]).toInt()
+    val bottom = (request.bottom + rootLocation[1]).toInt()
+    val full = Bitmap.createBitmap(
+        captureWindow.decorView.width.coerceAtLeast(1),
+        captureWindow.decorView.height.coerceAtLeast(1),
+        Bitmap.Config.ARGB_8888
+    )
+    PixelCopy.request(captureWindow, full, { result ->
+        if (result != PixelCopy.SUCCESS || left >= full.width || top >= full.height) {
+            full.recycle(); onComplete(null); return@request
+        }
+        val crop = Bitmap.createBitmap(full, left, top, (right - left).coerceAtMost(full.width - left).coerceAtLeast(1), (bottom - top).coerceAtMost(full.height - top).coerceAtLeast(1))
+        full.recycle()
+        if (crop.isBlankOrSolid()) { crop.recycle(); onComplete(null); return@request }
     val file = File(context.cacheDir, "ai_selection_${System.currentTimeMillis()}.jpg")
     FileOutputStream(file).use { crop.compress(Bitmap.CompressFormat.JPEG, 90, it) }
     crop.recycle()
-    return AiAttachment(
+    onComplete(AiAttachment(
         uri = Uri.fromFile(file).toString(),
         mimeType = "image/jpeg",
         displayName = file.name,
         sizeBytes = file.length(),
         dataBase64 = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
-    )
+    ))
+    }, Handler(Looper.getMainLooper()))
+}
+
+private fun Bitmap.isBlankOrSolid(): Boolean {
+    if (width == 0 || height == 0) return true
+    val stepX = (width / 8).coerceAtLeast(1)
+    val stepY = (height / 8).coerceAtLeast(1)
+    var first = 0
+    var min = 255
+    var max = 0
+    var samples = 0
+    for (y in 0 until height step stepY) {
+        for (x in 0 until width step stepX) {
+            val pixel = getPixel(x, y)
+            val luminance = (pixel shr 16 and 0xff) * 299 / 1000 +
+                (pixel shr 8 and 0xff) * 587 / 1000 + (pixel and 0xff) * 114 / 1000
+            if (samples == 0) first = luminance
+            min = minOf(min, luminance)
+            max = maxOf(max, luminance)
+            samples++
+        }
+    }
+    return samples == 0 || (max - min < 3 && (first < 250 || first > 250))
 }
 
 private fun WebView.injectNotionScrollFix(darkTheme: Boolean) {

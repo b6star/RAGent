@@ -28,7 +28,6 @@ import com.yourssu.ragent.data.remote.AiErrorReason
 import com.yourssu.ragent.data.remote.AiRequestException
 import com.yourssu.ragent.data.remote.DirectAiClient
 import com.yourssu.ragent.data.remote.DirectAiAttachment
-import com.yourssu.ragent.model.AiApiProvider
 import com.yourssu.ragent.model.AiUsageDashboard
 import com.yourssu.ragent.model.AiUsageRecord
 import com.yourssu.ragent.model.toAiUsageDashboard
@@ -337,7 +336,8 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                                         AiAttachment(
                                             uri = uri,
                                             mimeType = item["mimeType"] as? String ?: "application/octet-stream",
-                                            displayName = item["displayName"] as? String ?: "attachment"
+                                            displayName = item["displayName"] as? String ?: "attachment",
+                                            sizeBytes = (item["sizeBytes"] as? Number)?.toLong() ?: 0L
                                         )
                                     }
                                 }
@@ -437,6 +437,26 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun discardSessionIfEmpty(projectId: String, sessionId: String?) {
+        val uid = auth.currentUser?.uid ?: return
+        val safeSessionId = sessionId ?: return
+        viewModelScope.launch {
+            runCatching {
+                val sessionRef = db.collection("users").document(uid)
+                    .collection("ai_chats").document(projectId)
+                    .collection("sessions").document(safeSessionId)
+                val messages = sessionRef.collection("messages").limit(1).get().await()
+                if (messages.isEmpty) {
+                    sessionRef.delete().await()
+                    _sessions.removeAll { it.id == safeSessionId }
+                    if (currentSessionId == safeSessionId) currentSessionId = null
+                }
+            }.onFailure { error ->
+                Log.e(TAG, "Discard empty session error", error)
+            }
+        }
+    }
+
     private suspend fun uploadAttachments(
         uid: String,
         projectId: String,
@@ -488,6 +508,13 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                 val messagesSnapshot = sessionRef.collection("messages").get().await()
                 val isFirstMessage = messagesSnapshot.isEmpty
                 val storedAttachments = uploadAttachments(uid, projectId, sessionId, attachments)
+                Log.d(
+                    TAG,
+                    "AI attachment preflight count=${attachments.size} " +
+                        "valid=${attachments.count { !it.dataBase64.isNullOrBlank() }} " +
+                        "bytes=${attachments.sumOf { it.sizeBytes }} " +
+                        "stored=${storedAttachments.size}"
+                )
 
                 // 2. 사용자 질문 Firestore에 즉시 저장
                 val userMessage = hashMapOf<String, Any>(
@@ -500,7 +527,8 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                         mapOf(
                             "uri" to attachment.uri,
                             "mimeType" to attachment.mimeType,
-                            "displayName" to attachment.displayName
+                            "displayName" to attachment.displayName,
+                            "sizeBytes" to attachment.sizeBytes
                         )
                     }
                 }

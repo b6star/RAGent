@@ -1,5 +1,6 @@
 package com.yourssu.ragent.ui.project
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yourssu.ragent.model.Project
+import com.yourssu.ragent.ui.agent.theme.AgentTheme
 
 @Composable
 fun RepositoryTab(project: Project, onExit: () -> Unit, visible: Boolean = true, selectionRequest: SourceSelectionRequest? = null, onSelectionResolved: (SourceSelectionResult) -> Unit = {}, onSelectionImageCaptured: (AiAttachment) -> Unit = {}) {
@@ -21,7 +23,8 @@ fun RepositoryTab(project: Project, onExit: () -> Unit, visible: Boolean = true,
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .background(AgentTheme.colors.background),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(project.githubUrl.ifBlank { "GitHub Repository 미연결" }, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

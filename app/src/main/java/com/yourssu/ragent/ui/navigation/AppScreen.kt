@@ -19,7 +19,8 @@ sealed interface AppScreen {
     ) : AppScreen
     data class AgentChat(
         val project: Project,
-        val selection: AiSelectionDraft? = null
+        val selection: AiSelectionDraft? = null,
+        val discardIfEmpty: Boolean = false
     ) : AppScreen
     data class PersonDetail(
         val person: Person,

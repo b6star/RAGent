@@ -69,31 +69,29 @@ import com.yourssu.ragent.ui.project.formatTime
 private const val MAX_ATTACHMENT_BYTES = 10L * 1024L * 1024L
 private const val MAX_TOTAL_ATTACHMENT_BYTES = 20L * 1024L * 1024L
 
-private fun Uri.toAttachment(context: Context): AiAttachment {
+private fun Uri.toAttachment(context: Context): AiAttachment? {
     val displayName = lastPathSegment
         ?.substringAfterLast('/')
         ?.takeIf { it.isNotBlank() }
         ?: "image"
+    val bytes = runCatching {
+        context.contentResolver.openInputStream(this)?.use { it.readBytes() }
+    }.getOrNull()?.takeIf { it.isNotEmpty() } ?: return null
     return AiAttachment(
         uri = toString(),
         mimeType = context.contentResolver.getType(this) ?: "application/octet-stream",
         displayName = displayName,
-        sizeBytes = runCatching {
-            context.contentResolver.openAssetFileDescriptor(this, "r")?.use { it.length }
-        }.getOrNull()?.takeIf { it >= 0 } ?: 0L
-        ,dataBase64 = runCatching {
-            context.contentResolver.openInputStream(this)?.use { input ->
-                Base64.encodeToString(input.readBytes(), Base64.NO_WRAP)
-            }
-        }.getOrNull()
+        sizeBytes = bytes.size.toLong(),
+        dataBase64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
     )
 }
 
-private fun Bitmap.toAttachment(context: Context): AiAttachment {
+private fun Bitmap.toAttachment(context: Context): AiAttachment? {
     val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
-    FileOutputStream(file).use { output ->
-        compress(Bitmap.CompressFormat.JPEG, 90, output)
-    }
+    val compressed = runCatching {
+        FileOutputStream(file).use { output -> compress(Bitmap.CompressFormat.JPEG, 90, output) }
+    }.getOrDefault(false)
+    if (!compressed || file.length() == 0L) return null
     return AiAttachment(
         uri = Uri.fromFile(file).toString(),
         mimeType = "image/jpeg",
@@ -138,11 +136,21 @@ fun AgentChatScreen(
     var attachmentError by remember(sessionId) { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     fun addAttachment(attachment: AiAttachment) {
+        val encoded = attachment.dataBase64
+        val decodedSize = encoded?.let {
+            runCatching { Base64.decode(it, Base64.DEFAULT).size.toLong() }.getOrNull()
+        } ?: 0L
         when {
+            encoded.isNullOrBlank() || decodedSize == 0L -> {
+                attachmentError = "첨부 파일을 읽지 못했습니다. 다시 선택해 주세요."
+            }
+            encoded.length > (MAX_ATTACHMENT_BYTES * 4L / 3L + 4L) || decodedSize > MAX_ATTACHMENT_BYTES -> {
+                attachmentError = "파일 하나당 최대 10MB까지 첨부할 수 있습니다."
+            }
             attachment.sizeBytes > MAX_ATTACHMENT_BYTES -> {
                 attachmentError = "파일 하나당 최대 10MB까지 첨부할 수 있습니다."
             }
-            attachments.sumOf { it.sizeBytes } + attachment.sizeBytes > MAX_TOTAL_ATTACHMENT_BYTES -> {
+            attachments.sumOf { it.sizeBytes } + decodedSize > MAX_TOTAL_ATTACHMENT_BYTES -> {
                 attachmentError = "한 번에 최대 20MB까지 첨부할 수 있습니다."
             }
             else -> {
@@ -154,17 +162,17 @@ fun AgentChatScreen(
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
-        uris.forEach { uri -> addAttachment(uri.toAttachment(context)) }
+        uris.forEach { uri -> uri.toAttachment(context)?.let(::addAttachment) }
     }
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { addAttachment(it.toAttachment(context)) }
+        uri?.let { it.toAttachment(context)?.let(::addAttachment) }
     }
     val cameraPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
-        bitmap?.let { addAttachment(it.toAttachment(context)) }
+        bitmap?.let { it.toAttachment(context)?.let(::addAttachment) }
     }
     val density = LocalDensity.current
     val imeBottom = WindowInsets.ime.getBottom(density)
@@ -726,14 +734,21 @@ private fun AttachmentPreviewDialog(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(attachments, key = { it.uri }) { attachment ->
-                        AsyncImage(
-                            model = attachment.uri,
-                            contentDescription = attachment.displayName,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 520.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "${attachment.displayName} · ${formatAttachmentSize(attachment.sizeBytes)}",
+                                color = Color.White.copy(alpha = 0.8f),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            AsyncImage(
+                                model = attachment.uri,
+                                contentDescription = attachment.displayName,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 520.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                        }
                     }
                 }
                 IconButton(
@@ -752,6 +767,12 @@ private fun AttachmentPreviewDialog(
             }
         }
     }
+}
+
+private fun formatAttachmentSize(bytes: Long): String = when {
+    bytes >= 1024 * 1024 -> "%.2f MB".format(bytes / (1024.0 * 1024.0))
+    bytes >= 1024 -> "%.1f KB".format(bytes / 1024.0)
+    else -> "$bytes B"
 }
 
 @Composable
