@@ -356,8 +356,6 @@ async function scrollAndCollect(
   const discoveredLinks: string[] = [];
   let previousHeight = 0;
   let stableCount = 0;
-  let stableDatabaseLinks = 0;
-  let databaseContainerReady = false;
   await page.evaluate(() => window.scrollTo(0, 0));
   for (let step = 0; step < request.policy.maximumScrollSteps; step += 1) {
     if (step === 0 || step % 5 === 0) {
@@ -384,41 +382,21 @@ async function scrollAndCollect(
     discoveredLinks.push(
         ...(await extractDatabaseRowLinks(page, pageKey, false))
     );
-    const linkCountBeforeScroll = uniqueNotionLinks(
-      discoveredLinks, pageKey
-    ).length;
     if (broadPageLinks) {
-      if (!databaseContainerReady) {
-        await page.evaluate(() => {
-          const containers = Array.from(document.querySelectorAll<HTMLElement>(
-            "*"
-          )).filter((element) => {
-            const style = getComputedStyle(element);
-            return (style.overflowY === "auto" || style.overflowY === "scroll") &&
-              element.scrollHeight > element.clientHeight + 20;
-          });
-          const container = containers.sort((left, right) =>
-            (right.scrollHeight - right.clientHeight) -
-            (left.scrollHeight - left.clientHeight)
-          )[0];
-          container?.setAttribute("data-ragent-db-scroll", "true");
-        });
-        databaseContainerReady = true;
-      }
       await page.evaluate(() => {
-        const container = document.querySelector<HTMLElement>(
-          "[data-ragent-db-scroll]"
-        );
-        if (container) {
+        const elements = Array.from(document.querySelectorAll<HTMLElement>(
+          "*"
+        ));
+        const containers = elements.filter((element) => {
+          const style = getComputedStyle(element);
+          const scrollable = style.overflowY === "auto" ||
+            style.overflowY === "scroll";
+          return scrollable && element.scrollHeight > element.clientHeight + 20;
+        });
+        for (const container of containers) {
           container.scrollTop += Math.max(container.clientHeight * 0.8, 500);
         }
       });
-      const linkCountAfterScroll = uniqueNotionLinks(
-        discoveredLinks, pageKey
-      ).length;
-      stableDatabaseLinks = linkCountAfterScroll === linkCountBeforeScroll ?
-        stableDatabaseLinks + 1 : 0;
-      if (stableDatabaseLinks >= 3) break;
     }
     const reachedBottom = snapshot.y + snapshot.viewportHeight >=
       snapshot.height - 10;
