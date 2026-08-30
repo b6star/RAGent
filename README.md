@@ -39,11 +39,11 @@ RAGent는 공개 GitHub Repository와 Notion 문서를 프로젝트 지식으로
 - 기존 대화 또는 새 대화를 선택한 뒤 별도의 질문을 작성해 전송
 - 전송하지 않은 선택 Draft와 새 빈 대화 자동 정리
 
-Phase 1~3과 Phase 4 Step 1~2가 완료되었습니다.
+Phase 1~3과 Phase 4 Step 1~3.3의 코드 구현이 완료되었습니다.
 
 ## 현재 Phase
 
-다음 작업은 **Phase 4 Step 3: Public Source Sync Status**입니다. 서버가 공개 GitHub·Notion URL의 접근 가능 여부와 변경 여부를 확인하고, 앱에서 상태·마지막 확인 시각·오류·재시도를 표시하는 단계입니다. 이 단계가 끝나면 공통 Document·Metadata 모델을 만들고 Chunking, Embedding, Vector Search를 연결합니다.
+**Phase 4 Step 3: Public Link Source Sync**의 코드 구현을 완료했습니다. 프로젝트 진입 요청은 인증·멤버 확인·throttle·transaction lease를 거쳐 Cloud Tasks 작업 하나로 바뀝니다. GitHub는 공개 Git 프로토콜로, Notion은 private Cloud Run의 Playwright·Chromium으로 수집하며 항목별 SHA-256과 전체 manifest를 Firebase Storage snapshot 및 Firestore revision 상태로 저장합니다. 실제 Cloud Run·Functions 배포와 IAM 설정은 아직 남아 있으며, 다음 구현은 Step 4 공통 Document·Metadata 정규화입니다.
 
 ```mermaid
 flowchart LR

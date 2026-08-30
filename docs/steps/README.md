@@ -10,10 +10,16 @@ Phase 2의 Firebase 실제 데이터 구현을 Step과 PR 단위로 기록한다
 | [Step 02 - Project CRUD](step-02-project-crud.md) | `feature/firebase-project-crud` | #3 | Merged |
 | [Step 03 - Members, Roles and Sharing](step-03-members-roles-sharing.md) | `feature/firebase-members-roles` | #4 | Open |
 
+## Phase 4
+
+| Step | Branch | Status |
+| --- | --- | --- |
+| [Step 3.1 - Source Sync Foundation](step-04-source-sync-foundation.md) | `feature/public-source-sync` | Complete |
+| [Step 3.2~3.3 - Coordinator와 Collectors](step-05-source-sync-coordinator-workers.md) | `feature/public-source-sync` | Complete (deployment pending) |
+
 Phase 2 구현은 완료되었고 Step 03의 `main` 병합만 남아 있다.
 
-## Next Phase
+## Current Work
 
-다음 Phase는 Gemini AI 기본 연동이다. Firebase Cloud Functions에서 인증된 질문을 받아 Gemini 답변을 반환하는 최소 흐름부터 구현한다.
-
-GitHub 및 Notion 공개 Source 수집과 RAG는 Gemini 기본 연결 이후 별도 Phase에서 진행한다.
+Phase 4 Step 3의 coordinator와 GitHub·Notion 수집 worker 구현을 완료했다.
+다음 작업은 snapshot을 공통 Document·Metadata로 정규화하는 Step 4다.

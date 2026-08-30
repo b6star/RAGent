@@ -56,7 +56,7 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 마크다운 렌더링 지원 및 AI 응답 메타데이터 표시
 - 사용자별 AI 사용량(토큰) 서버 기반 실시간 집계 기초 로직
 
-### Phase 4 - 공개 GitHub·Notion Source 연결 (Step 1~2 완료, 2026-08-30 KST)
+### Phase 4 - 공개 GitHub·Notion Source 연결 (Step 1~3.3 구현 완료, 2026-08-30 KST)
 
 #### Step 1: Public Source Link Management와 WebView (완료)
 
@@ -232,7 +232,10 @@ fun AgentChatScreen(/* existing parameters */) {
 ### Phase 4 - 공개 GitHub·Notion Source 연결
 - Step 1 완료: 공개 URL 관리와 Docs·Repository WebView
 - Step 2 완료: 화면 선택, Source 위치 anchoring, Agent 텍스트·이미지 첨부
-- Step 3 예정: Source 접근 상태, 마지막 확인 시각, Content Hash와 중복 확인 방지
+- Step 3.1 완료: Source Sync 공통 설정과 Firestore 상태·제어 모델
+- Step 3.2 완료: 인증·멤버 검증·throttle·transaction lease·Cloud Tasks coordinator
+- Step 3.3 구현 완료: 공개 Git 수집기와 private Cloud Run Playwright Notion 수집기, SHA-256 manifest·Storage snapshot·revision 승격
+- Step 3 배포 대기: Cloud Run·Functions 배포, IAM과 `NOTION_CRAWLER_URL` 설정
 - Step 4 예정: 공통 Document·Metadata 모델로 후속 RAG 입력 준비
 
 ### Phase 5 - Provider-agnostic RAG 기반
@@ -246,20 +249,28 @@ fun AgentChatScreen(/* existing parameters */) {
 
 ## 10. 현재 작업 위치
 
-- 완료: Phase 1, Phase 2, Phase 3, Phase 4 Step 1~2
+- 완료: Phase 1, Phase 2, Phase 3, Phase 4 Step 1~3.3 코드 구현
 - Phase 3 종료일: **2026-08-29 06:13 KST**
 - Phase 4 Step 2 종료일: **2026-08-30 KST**
-- 다음 작업: **Phase 4 Step 3 / Public Source Sync Status**
+- 현재 작업: **Phase 4 Step 3 배포 준비 / Public Link Source Sync**
+- 완료: **Step 3.1 Source Sync Foundation** — 공통 설정 원본, Firestore 상태·control·Source 모델과 상태 전이 테스트
+- 완료: **Step 3.2 Source Sync Coordinator** — 인증, 멤버 검증, throttle, transaction lease와 Cloud Tasks 요청
+- 구현 완료: **Step 3.3 Source Collectors** — 공개 Git과 private Cloud Run Playwright·Chromium 수집, manifest·snapshot·revision 처리
+- 다음 작업: Cloud Run·Functions 배포와 IAM 설정 후 **Step 4 공통 Document·Metadata 정규화**
 
 ### 새 대화 시작용 다음 작업 요약
 
-목표는 아직 Source 본문을 Chunking하거나 Embedding하는 것이 아니라, 연결된 공개 GitHub·Notion Source를 서버가 안전하게 확인하고 상태를 공유하는 것이다.
+Step 3.1~3.3 코드는 구현되어 있다. 프로젝트 진입 시 `requestSourceSync`가
+인증·멤버·throttle·lease를 확인하고 Cloud Tasks worker를 Queue한다. worker는
+GitHub 공개 Git을 직접 수집하고, Notion은 private Cloud Run Playwright 서비스에
+위임한다. 항목별 hash와 manifest, 압축 snapshot 및 revision 상태까지 저장한다.
 
-1. Cloud Function에 GitHub·Notion 공개 URL 접근 확인 로직을 추가한다.
-2. `projects/{projectId}` 또는 Source 하위 문서에 `status`, `lastCheckedAt`, `lastChangedAt`, `contentHash`, `lastError`를 저장한다.
-3. 동일 URL을 짧은 시간 안에 반복 확인하지 않도록 dedupe와 throttle 정책을 둔다.
-4. 프로젝트 UI에 확인 중·정상·변경됨·오류 상태, 마지막 확인 시각과 재시도 동작을 표시한다.
-5. 접근 확인과 Content Hash 비교를 검증한 뒤 Step 4의 공통 Document·Metadata 정규화로 넘어간다.
+1. `services/notion-crawler`를 private Cloud Run으로 배포한다.
+2. Functions 실행 서비스 계정에 Cloud Run Invoker·Cloud Tasks Enqueuer를 부여한다.
+3. crawler 서비스 계정에 snapshot bucket Object Creator를 부여한다.
+4. Functions parameter `NOTION_CRAWLER_URL`을 설정하고 Functions를 배포한다.
+5. 실제 공개 GitHub·Notion 프로젝트에서 첫 수집과 변경 없음·변경 있음 흐름을 확인한다.
+6. 다음 코드 작업은 Step 4 공통 Document·Metadata 정규화다.
 
 다음 작업에서 반드시 보존할 사항:
 

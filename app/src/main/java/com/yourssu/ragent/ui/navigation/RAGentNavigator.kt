@@ -101,6 +101,9 @@ fun RAGentNavigator(
 
         is AppScreen.ProjectHome -> {
             val project = projects.firstOrNull { it.id == current.project.id } ?: current.project
+            LaunchedEffect(project.id, project.githubUrl, project.docsUrl) {
+                projectViewModel.requestSourceSync(project.id)
+            }
             ProjectHomeScreen(
                 project = project,
                 selectedTab = selectedTab,

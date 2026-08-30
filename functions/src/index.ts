@@ -9,11 +9,15 @@ import {
   streamAiResponse,
   isAiProvider,
 } from "./ai/providers";
+import {SOURCE_SYNC_CONFIG} from "./sourceSync/config";
+
+export {requestSourceSync} from "./sourceSync/coordinator";
+export {syncPublicSources} from "./sourceSync/worker";
 
 admin.initializeApp();
 const db = admin.firestore();
 
-setGlobalOptions({maxInstances: 10, region: "asia-northeast3"});
+setGlobalOptions({maxInstances: 10, region: SOURCE_SYNC_CONFIG.region});
 
 const geminiKey = defineSecret("GEMINI_API_KEY");
 const DEVELOPER_FREE_TOKEN_LIMIT = 300_000;
@@ -401,10 +405,17 @@ export const askAi = onCall({
     request.data.projectId.trim() : "";
   const sessionIdValue = typeof request.data?.sessionId === "string" ?
     request.data.sessionId.trim() : "";
-  const attachments: AiInlineAttachment[] = Array.isArray(request.data?.attachments) ?
-    request.data.attachments
-      .filter((item: any) => typeof item?.mimeType === "string" && typeof item?.dataBase64 === "string")
-      .map((item: any) => ({mimeType: item.mimeType, dataBase64: item.dataBase64})) : [];
+  const attachmentValues: unknown = request.data?.attachments;
+  const attachments: AiInlineAttachment[] = Array.isArray(attachmentValues) ?
+    attachmentValues.filter(
+      (item: unknown): item is AiInlineAttachment =>
+        typeof item === "object" &&
+        item !== null &&
+        "mimeType" in item &&
+        typeof item.mimeType === "string" &&
+        "dataBase64" in item &&
+        typeof item.dataBase64 === "string"
+    ) : [];
   const encodedAttachmentBytes = attachments.reduce(
     (total, item) => total + Math.floor(item.dataBase64.length * 0.75), 0);
   if (encodedAttachmentBytes > 20 * 1024 * 1024) {
