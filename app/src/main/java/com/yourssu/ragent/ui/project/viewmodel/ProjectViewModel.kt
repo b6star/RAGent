@@ -64,10 +64,13 @@ class ProjectViewModel : ViewModel() {
         viewModelScope.launch {
             Log.d("SourceSync", "requestSourceSync started id=$projectId")
             try {
-                functions.getHttpsCallable("requestSourceSync")
+                val result = functions.getHttpsCallable("requestSourceSync")
                     .call(mapOf("projectId" to projectId))
                     .await()
-                Log.d("SourceSync", "requestSourceSync succeeded id=$projectId")
+                Log.d(
+                    "SourceSync",
+                    "requestSourceSync succeeded id=$projectId data=${result.data}"
+                )
             } catch (e: Exception) {
                 Log.w("SourceSync", "Background Source sync request failed", e)
             }

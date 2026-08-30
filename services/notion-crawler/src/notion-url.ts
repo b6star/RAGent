@@ -37,14 +37,16 @@ export function normalizeNotionUrl(rawUrl: string): string | null {
 export function notionPageKey(rawUrl: string): string {
   const normalized = normalizeNotionUrl(rawUrl);
   if (!normalized) return rawUrl;
-  const dashedMatches = normalized.match(DASHED_PAGE_ID);
+  const url = new URL(normalized);
+  const path = decodeURIComponent(url.pathname);
+  const dashedMatches = path.match(DASHED_PAGE_ID);
   if (dashedMatches?.length) {
     return dashedMatches[dashedMatches.length - 1]
       .replace(/-/g, "").toLowerCase();
   }
-  const matches = normalized.match(PAGE_ID);
+  const matches = path.match(PAGE_ID);
   return matches?.length ? matches[matches.length - 1].toLowerCase() :
-    normalized;
+    `${url.origin.toLowerCase()}${url.pathname}`;
 }
 
 export function uniqueNotionLinks(

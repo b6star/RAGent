@@ -32,6 +32,17 @@ test("Notion child links deduplicate by page ID", () => {
   assert.equal(links.length, 1);
 });
 
+test("Notion view IDs do not replace the page ID", () => {
+  const pageId = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const viewId = "cccccccccccccccccccccccccccccccc";
+  assert.equal(
+    notionPageKey(
+      `https://app.notion.com/p/Page-${pageId}?v=${viewId}`
+    ),
+    pageId
+  );
+});
+
 test("scroll snapshots merge repeated text blocks", () => {
   assert.equal(
     mergeTextSnapshots(["first\n\nsecond", "second\n\nthird"]),

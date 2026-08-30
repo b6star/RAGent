@@ -72,7 +72,28 @@ export async function persistSnapshot(
     items: sortedItems,
   };
   const compressed = await gzipAsync(Buffer.from(JSON.stringify(snapshot)));
-  await new Storage().bucket(request.bucketName).file(snapshotObjectPath).save(
+  if (process.env.SKIP_STORAGE === "true") {
+    console.log("Notion snapshot storage skipped", {
+      projectId: request.projectId,
+      itemCount: sortedItems.length,
+      totalBytes,
+    });
+    return {
+      schemaVersion: request.policy.schemaVersion,
+      manifestVersion: request.policy.manifestVersion,
+      extractorVersion: request.policy.extractorVersion,
+      sourceType: "notion",
+      canonicalUrl: request.url,
+      sourceRevision: null,
+      manifestHash,
+      itemCount: sortedItems.length,
+      totalBytes,
+      revisionId,
+      snapshotObjectPath: "(storage skipped)",
+    };
+  }
+  const bucket = new Storage().bucket(request.bucketName);
+  await bucket.file(snapshotObjectPath).save(
     compressed,
     {
       resumable: false,
@@ -83,6 +104,18 @@ export async function persistSnapshot(
       },
     }
   );
+  const [files] = await bucket.getFiles({
+    prefix: `${request.storagePrefix}/${request.projectId}/notion/`,
+  });
+  const revisions = await Promise.all(files.map(async (file) => {
+    const [metadata] = await file.getMetadata();
+    return {
+      file,
+      created: Date.parse(metadata.timeCreated ?? "") || 0,
+    };
+  }));
+  revisions.sort((left, right) => right.created - left.created);
+  await Promise.all(revisions.slice(30).map(({file}) => file.delete()));
   return {
     schemaVersion: request.policy.schemaVersion,
     manifestVersion: request.policy.manifestVersion,

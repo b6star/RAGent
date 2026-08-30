@@ -1,0 +1,973 @@
+PS C:\Users\baejunsung\AndroidStudioProjects\RAGent\services\notion-crawler> $env:SKIP_STORAGE="true"
+PS C:\Users\baejunsung\AndroidStudioProjects\RAGent\services\notion-crawler> npm start
+
+> ragent-notion-crawler@0.1.0 start
+> node dist/server.js
+
+Notion crawler listening on port 8080
+Notion crawl request received
+Notion crawl started {
+  projectId: 'local-test',
+  url: 'https://app.notion.com/p/TF-RAG-Test-3c0974b809de8009a3acc4ed55be76cb?source=copy_link'
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de8009a3acc4ed55be76cb',
+  url: 'https://app.notion.com/p/TF-RAG-Test-3c0974b809de8009a3acc4ed55be76cb'
+}
+Notion page navigation completed { pageKey: '3c0974b809de8009a3acc4ed55be76cb', durationMs: 607 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de8009a3acc4ed55be76cb',
+  totalAnchors: 13,
+  pageIdAnchors: 13,
+  acceptedAnchors: 12
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8009a3acc4ed55be76cb',
+  phase: 'initial',
+  count: 4
+}
+Notion page expansion started { pageKey: '3c0974b809de8009a3acc4ed55be76cb' }
+Notion page expansion completed { pageKey: '3c0974b809de8009a3acc4ed55be76cb', durationMs: 36244 }
+Notion page scrolling started { pageKey: '3c0974b809de8009a3acc4ed55be76cb' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8009a3acc4ed55be76cb', count: 18 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8009a3acc4ed55be76cb', count: 18 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8009a3acc4ed55be76cb', count: 18 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8009a3acc4ed55be76cb', count: 18 }
+Notion page scrolling completed { pageKey: '3c0974b809de8009a3acc4ed55be76cb', durationMs: 363 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8009a3acc4ed55be76cb',
+  phase: 'after-scroll',
+  count: 5,
+  total: 22,
+  links: [
+    'https://app.notion.com/p/3c0974b809de80e48e4ffa9cea6c56c8?v=6d5974b809de83f29d0008f45e1e6f63',
+    'https://app.notion.com/p/3c0974b809de80c19c7ede3aab94ab01?v=3c0974b809de800e9dc5000c6aa225f9',
+    'https://app.notion.com/p/3c0974b809de80508613d24217d0b381?v=864974b809de83bfbe4b887285e5056e',
+    'https://app.notion.com/p/3c0974b809de8058b199c372fa199140?v=3c0974b809de80bda394000c45aa04b9',
+    'https://app.notion.com/p/3c0974b809de80f98864d75cd0eaa3b1',
+    'https://app.notion.com/p/12d974b8-09de-83b7-b8e9-81022af6ff8e',
+    'https://app.notion.com/p/4c6974b8-09de-8289-ace8-017517672620',
+    'https://app.notion.com/p/3c0974b8-09de-8037-9c2b-d6062f913cd8',
+    'https://app.notion.com/p/3c0974b8-09de-80ad-9aff-c9ec735ec21a',
+    'https://app.notion.com/p/3c0974b8-09de-8095-a5eb-d0e9bb31348f',
+    'https://app.notion.com/p/3c0974b8-09de-806d-9faa-cfb6c0f8473d',
+    'https://app.notion.com/p/3c0974b8-09de-8001-aab8-c6bc725b546c',
+    'https://app.notion.com/p/3c0974b8-09de-80c7-bfd3-fb257c4cd5b7',
+    'https://app.notion.com/p/3c0974b8-09de-80dd-9360-e79cc84c6a31',
+    'https://app.notion.com/p/285974b8-09de-83f2-a491-81aa1b057656',
+    'https://app.notion.com/p/3c0974b8-09de-809c-bb41-c6636381b387',
+    'https://app.notion.com/p/3c0974b8-09de-8028-9095-c8398b0bb58d',
+    'https://app.notion.com/p/3c0974b8-09de-809b-be02-fd3d99b9b960',
+    'https://app.notion.com/p/3c0974b8-09de-803f-8c85-d777b9844e45',
+    'https://app.notion.com/p/3c0974b8-09de-807d-93da-f6b15fd14bbb',
+    'https://app.notion.com/p/3c0974b8-09de-80b3-a7d4-ec2ceeecde6b',
+    'https://app.notion.com/p/3c0974b8-09de-80c8-803f-f80dc981389f'
+  ]
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de8009a3acc4ed55be76cb',
+  itemCount: 1,
+  byteSize: 5089
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80e48e4ffa9cea6c56c8',
+  url: 'https://app.notion.com/p/3c0974b809de80e48e4ffa9cea6c56c8?v=6d5974b809de83f29d0008f45e1e6f63'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80e48e4ffa9cea6c56c8', durationMs: 39 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8',
+  totalAnchors: 6,
+  pageIdAnchors: 4,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80e48e4ffa9cea6c56c8',
+  phase: 'initial',
+  count: 1
+}
+Notion page expansion started { pageKey: '3c0974b809de80e48e4ffa9cea6c56c8' }
+Notion page expansion completed { pageKey: '3c0974b809de80e48e4ffa9cea6c56c8', durationMs: 12338 }
+Notion page scrolling started { pageKey: '3c0974b809de80e48e4ffa9cea6c56c8' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step started { projectId: 'local-test', step: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step completed { projectId: 'local-test', step: 5, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step started { projectId: 'local-test', step: 10 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step completed { projectId: 'local-test', step: 10, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step started { projectId: 'local-test', step: 15 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion scroll step completed { projectId: 'local-test', step: 15, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80e48e4ffa9cea6c56c8', count: 3 }
+Notion page scrolling completed { pageKey: '3c0974b809de80e48e4ffa9cea6c56c8', durationMs: 2201 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80e48e4ffa9cea6c56c8',
+  phase: 'after-scroll',
+  count: 1,
+  total: 4,
+  links: [
+    'https://app.notion.com/p/3c0974b809de80f98864d75cd0eaa3b1',
+    'https://app.notion.com/p/12d974b8-09de-83b7-b8e9-81022af6ff8e',
+    'https://app.notion.com/p/4c6974b8-09de-8289-ace8-017517672620',
+    'https://app.notion.com/p/3c0974b8-09de-8037-9c2b-d6062f913cd8'
+  ]
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80e48e4ffa9cea6c56c8',
+  itemCount: 2,
+  byteSize: 609
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80c19c7ede3aab94ab01',
+  url: 'https://app.notion.com/p/3c0974b809de80c19c7ede3aab94ab01?v=3c0974b809de800e9dc5000c6aa225f9'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80c19c7ede3aab94ab01', durationMs: 31 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80c19c7ede3aab94ab01',
+  totalAnchors: 3,
+  pageIdAnchors: 3,
+  acceptedAnchors: 0
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c19c7ede3aab94ab01',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80c19c7ede3aab94ab01' }
+Notion page expansion completed { pageKey: '3c0974b809de80c19c7ede3aab94ab01', durationMs: 8250 }
+Notion page scrolling started { pageKey: '3c0974b809de80c19c7ede3aab94ab01' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step started { projectId: 'local-test', step: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step completed { projectId: 'local-test', step: 5, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step started { projectId: 'local-test', step: 10 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step completed { projectId: 'local-test', step: 10, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step started { projectId: 'local-test', step: 15 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion scroll step completed { projectId: 'local-test', step: 15, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80c19c7ede3aab94ab01', count: 5 }
+Notion page scrolling completed { pageKey: '3c0974b809de80c19c7ede3aab94ab01', durationMs: 2180 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c19c7ede3aab94ab01',
+  phase: 'after-scroll',
+  count: 0,
+  total: 5,
+  links: [
+    'https://app.notion.com/p/3c0974b8-09de-80ad-9aff-c9ec735ec21a',
+    'https://app.notion.com/p/3c0974b8-09de-8095-a5eb-d0e9bb31348f',
+    'https://app.notion.com/p/3c0974b8-09de-806d-9faa-cfb6c0f8473d',
+    'https://app.notion.com/p/3c0974b8-09de-8001-aab8-c6bc725b546c',
+    'https://app.notion.com/p/3c0974b8-09de-80c7-bfd3-fb257c4cd5b7'
+  ]
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80c19c7ede3aab94ab01',
+  itemCount: 3,
+  byteSize: 535
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80508613d24217d0b381',
+  url: 'https://app.notion.com/p/3c0974b809de80508613d24217d0b381?v=864974b809de83bfbe4b887285e5056e'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80508613d24217d0b381', durationMs: 35 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80508613d24217d0b381',
+  totalAnchors: 5,
+  pageIdAnchors: 3,
+  acceptedAnchors: 0
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80508613d24217d0b381',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80508613d24217d0b381' }
+Notion page expansion completed { pageKey: '3c0974b809de80508613d24217d0b381', durationMs: 10287 }
+Notion page scrolling started { pageKey: '3c0974b809de80508613d24217d0b381' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step started { projectId: 'local-test', step: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step completed { projectId: 'local-test', step: 5, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step started { projectId: 'local-test', step: 10 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step completed { projectId: 'local-test', step: 10, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step started { projectId: 'local-test', step: 15 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion scroll step completed { projectId: 'local-test', step: 15, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de80508613d24217d0b381', count: 2 }
+Notion page scrolling completed { pageKey: '3c0974b809de80508613d24217d0b381', durationMs: 2200 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80508613d24217d0b381',
+  phase: 'after-scroll',
+  count: 0,
+  total: 2,
+  links: [
+    'https://app.notion.com/p/3c0974b8-09de-80dd-9360-e79cc84c6a31',
+    'https://app.notion.com/p/285974b8-09de-83f2-a491-81aa1b057656'
+  ]
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80508613d24217d0b381',
+  itemCount: 4,
+  byteSize: 419
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de8058b199c372fa199140',
+  url: 'https://app.notion.com/p/3c0974b809de8058b199c372fa199140?v=3c0974b809de80bda394000c45aa04b9'
+}
+Notion page navigation completed { pageKey: '3c0974b809de8058b199c372fa199140', durationMs: 35 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de8058b199c372fa199140',
+  totalAnchors: 11,
+  pageIdAnchors: 3,
+  acceptedAnchors: 0
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8058b199c372fa199140',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de8058b199c372fa199140' }
+Notion page expansion completed { pageKey: '3c0974b809de8058b199c372fa199140', durationMs: 10317 }
+Notion page scrolling started { pageKey: '3c0974b809de8058b199c372fa199140' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step started { projectId: 'local-test', step: 5 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step completed { projectId: 'local-test', step: 5, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step started { projectId: 'local-test', step: 10 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step completed { projectId: 'local-test', step: 10, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step started { projectId: 'local-test', step: 15 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion scroll step completed { projectId: 'local-test', step: 15, height: 1000, y: 0 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion database row pages discovered { currentPageKey: '3c0974b809de8058b199c372fa199140', count: 8 }
+Notion page scrolling completed { pageKey: '3c0974b809de8058b199c372fa199140', durationMs: 2238 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8058b199c372fa199140',
+  phase: 'after-scroll',
+  count: 0,
+  total: 8,
+  links: [
+    'https://app.notion.com/p/3c0974b8-09de-809c-bb41-c6636381b387',
+    'https://app.notion.com/p/3c0974b8-09de-8028-9095-c8398b0bb58d',
+    'https://app.notion.com/p/3c0974b8-09de-809b-be02-fd3d99b9b960',
+    'https://app.notion.com/p/3c0974b8-09de-803f-8c85-d777b9844e45',
+    'https://app.notion.com/p/3c0974b8-09de-807d-93da-f6b15fd14bbb',
+    'https://app.notion.com/p/3c0974b8-09de-80b3-a7d4-ec2ceeecde6b',
+    'https://app.notion.com/p/3c0974b8-09de-80c8-803f-f80dc981389f',
+    'https://app.notion.com/p/3c0974b8-09de-80f9-8864-d75cd0eaa3b1'
+  ]
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de8058b199c372fa199140',
+  itemCount: 5,
+  byteSize: 1051
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80f98864d75cd0eaa3b1',
+  url: 'https://app.notion.com/p/3c0974b809de80f98864d75cd0eaa3b1'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80f98864d75cd0eaa3b1', durationMs: 33 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80f98864d75cd0eaa3b1',
+  totalAnchors: 4,
+  pageIdAnchors: 3,
+  acceptedAnchors: 0
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80f98864d75cd0eaa3b1',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80f98864d75cd0eaa3b1' }
+Notion page expansion completed { pageKey: '3c0974b809de80f98864d75cd0eaa3b1', durationMs: 6202 }
+Notion page scrolling started { pageKey: '3c0974b809de80f98864d75cd0eaa3b1' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80f98864d75cd0eaa3b1', durationMs: 329 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80f98864d75cd0eaa3b1',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80f98864d75cd0eaa3b1',
+  itemCount: 6,
+  byteSize: 967
+}
+Notion page navigation started {
+  pageKey: '12d974b809de83b7b8e981022af6ff8e',
+  url: 'https://app.notion.com/p/12d974b8-09de-83b7-b8e9-81022af6ff8e'
+}
+Notion page navigation completed { pageKey: '12d974b809de83b7b8e981022af6ff8e', durationMs: 32 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '12d974b809de83b7b8e981022af6ff8e',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '12d974b809de83b7b8e981022af6ff8e',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '12d974b809de83b7b8e981022af6ff8e' }
+Notion page expansion completed { pageKey: '12d974b809de83b7b8e981022af6ff8e', durationMs: 11 }
+Notion page scrolling started { pageKey: '12d974b809de83b7b8e981022af6ff8e' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '12d974b809de83b7b8e981022af6ff8e', durationMs: 336 }
+Notion child-page links discovered {
+  pageKey: '12d974b809de83b7b8e981022af6ff8e',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '12d974b809de83b7b8e981022af6ff8e',
+  itemCount: 7,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '4c6974b809de8289ace8017517672620',
+  url: 'https://app.notion.com/p/4c6974b8-09de-8289-ace8-017517672620'
+}
+Notion page navigation completed { pageKey: '4c6974b809de8289ace8017517672620', durationMs: 34 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '4c6974b809de8289ace8017517672620',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '4c6974b809de8289ace8017517672620',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '4c6974b809de8289ace8017517672620' }
+Notion page expansion completed { pageKey: '4c6974b809de8289ace8017517672620', durationMs: 11 }
+Notion page scrolling started { pageKey: '4c6974b809de8289ace8017517672620' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '4c6974b809de8289ace8017517672620', durationMs: 338 }
+Notion child-page links discovered {
+  pageKey: '4c6974b809de8289ace8017517672620',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '4c6974b809de8289ace8017517672620',
+  itemCount: 8,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80379c2bd6062f913cd8',
+  url: 'https://app.notion.com/p/3c0974b8-09de-8037-9c2b-d6062f913cd8'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80379c2bd6062f913cd8', durationMs: 35 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80379c2bd6062f913cd8',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80379c2bd6062f913cd8',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80379c2bd6062f913cd8' }
+Notion page expansion completed { pageKey: '3c0974b809de80379c2bd6062f913cd8', durationMs: 12 }
+Notion page scrolling started { pageKey: '3c0974b809de80379c2bd6062f913cd8' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80379c2bd6062f913cd8', durationMs: 353 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80379c2bd6062f913cd8',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80379c2bd6062f913cd8',
+  itemCount: 9,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80ad9affc9ec735ec21a',
+  url: 'https://app.notion.com/p/3c0974b8-09de-80ad-9aff-c9ec735ec21a'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80ad9affc9ec735ec21a', durationMs: 40 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80ad9affc9ec735ec21a',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80ad9affc9ec735ec21a',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80ad9affc9ec735ec21a' }
+Notion page expansion completed { pageKey: '3c0974b809de80ad9affc9ec735ec21a', durationMs: 15 }
+Notion page scrolling started { pageKey: '3c0974b809de80ad9affc9ec735ec21a' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80ad9affc9ec735ec21a', durationMs: 393 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80ad9affc9ec735ec21a',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80ad9affc9ec735ec21a',
+  itemCount: 10,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de8095a5ebd0e9bb31348f',
+  url: 'https://app.notion.com/p/3c0974b8-09de-8095-a5eb-d0e9bb31348f'
+}
+Notion page navigation completed { pageKey: '3c0974b809de8095a5ebd0e9bb31348f', durationMs: 53 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de8095a5ebd0e9bb31348f',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8095a5ebd0e9bb31348f',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de8095a5ebd0e9bb31348f' }
+Notion page expansion completed { pageKey: '3c0974b809de8095a5ebd0e9bb31348f', durationMs: 21 }
+Notion page scrolling started { pageKey: '3c0974b809de8095a5ebd0e9bb31348f' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de8095a5ebd0e9bb31348f', durationMs: 454 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8095a5ebd0e9bb31348f',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de8095a5ebd0e9bb31348f',
+  itemCount: 11,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de806d9faacfb6c0f8473d',
+  url: 'https://app.notion.com/p/3c0974b8-09de-806d-9faa-cfb6c0f8473d'
+}
+Notion page navigation completed { pageKey: '3c0974b809de806d9faacfb6c0f8473d', durationMs: 35 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de806d9faacfb6c0f8473d',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de806d9faacfb6c0f8473d',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de806d9faacfb6c0f8473d' }
+Notion page expansion completed { pageKey: '3c0974b809de806d9faacfb6c0f8473d', durationMs: 62 }
+Notion page scrolling started { pageKey: '3c0974b809de806d9faacfb6c0f8473d' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de806d9faacfb6c0f8473d', durationMs: 387 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de806d9faacfb6c0f8473d',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de806d9faacfb6c0f8473d',
+  itemCount: 12,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de8001aab8c6bc725b546c',
+  url: 'https://app.notion.com/p/3c0974b8-09de-8001-aab8-c6bc725b546c'
+}
+Notion page navigation completed { pageKey: '3c0974b809de8001aab8c6bc725b546c', durationMs: 67 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de8001aab8c6bc725b546c',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8001aab8c6bc725b546c',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de8001aab8c6bc725b546c' }
+Notion page expansion completed { pageKey: '3c0974b809de8001aab8c6bc725b546c', durationMs: 43 }
+Notion page scrolling started { pageKey: '3c0974b809de8001aab8c6bc725b546c' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de8001aab8c6bc725b546c', durationMs: 824 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de8001aab8c6bc725b546c',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de8001aab8c6bc725b546c',
+  itemCount: 13,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7',
+  url: 'https://app.notion.com/p/3c0974b8-09de-80c7-bfd3-fb257c4cd5b7'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7', durationMs: 37 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80c7bfd3fb257c4cd5b7',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7' }
+Notion page expansion completed { pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7', durationMs: 11 }
+Notion page scrolling started { pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7', durationMs: 336 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80c7bfd3fb257c4cd5b7',
+  itemCount: 14,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80dd9360e79cc84c6a31',
+  url: 'https://app.notion.com/p/3c0974b8-09de-80dd-9360-e79cc84c6a31'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80dd9360e79cc84c6a31', durationMs: 38 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80dd9360e79cc84c6a31',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80dd9360e79cc84c6a31',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80dd9360e79cc84c6a31' }
+Notion page expansion completed { pageKey: '3c0974b809de80dd9360e79cc84c6a31', durationMs: 11 }
+Notion page scrolling started { pageKey: '3c0974b809de80dd9360e79cc84c6a31' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80dd9360e79cc84c6a31', durationMs: 336 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80dd9360e79cc84c6a31',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80dd9360e79cc84c6a31',
+  itemCount: 15,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '285974b809de83f2a49181aa1b057656',
+  url: 'https://app.notion.com/p/285974b8-09de-83f2-a491-81aa1b057656'
+}
+Notion page navigation completed { pageKey: '285974b809de83f2a49181aa1b057656', durationMs: 59 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '285974b809de83f2a49181aa1b057656',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '285974b809de83f2a49181aa1b057656',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '285974b809de83f2a49181aa1b057656' }
+Notion page expansion completed { pageKey: '285974b809de83f2a49181aa1b057656', durationMs: 13 }
+Notion page scrolling started { pageKey: '285974b809de83f2a49181aa1b057656' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '285974b809de83f2a49181aa1b057656', durationMs: 337 }
+Notion child-page links discovered {
+  pageKey: '285974b809de83f2a49181aa1b057656',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '285974b809de83f2a49181aa1b057656',
+  itemCount: 16,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de809cbb41c6636381b387',
+  url: 'https://app.notion.com/p/3c0974b8-09de-809c-bb41-c6636381b387'
+}
+Notion page navigation completed { pageKey: '3c0974b809de809cbb41c6636381b387', durationMs: 43 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de809cbb41c6636381b387',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de809cbb41c6636381b387',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de809cbb41c6636381b387' }
+Notion page expansion completed { pageKey: '3c0974b809de809cbb41c6636381b387', durationMs: 10 }
+Notion page scrolling started { pageKey: '3c0974b809de809cbb41c6636381b387' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de809cbb41c6636381b387', durationMs: 339 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de809cbb41c6636381b387',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de809cbb41c6636381b387',
+  itemCount: 17,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80289095c8398b0bb58d',
+  url: 'https://app.notion.com/p/3c0974b8-09de-8028-9095-c8398b0bb58d'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80289095c8398b0bb58d', durationMs: 40 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80289095c8398b0bb58d',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80289095c8398b0bb58d',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80289095c8398b0bb58d' }
+Notion page expansion completed { pageKey: '3c0974b809de80289095c8398b0bb58d', durationMs: 10 }
+Notion page scrolling started { pageKey: '3c0974b809de80289095c8398b0bb58d' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80289095c8398b0bb58d', durationMs: 342 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80289095c8398b0bb58d',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80289095c8398b0bb58d',
+  itemCount: 18,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de809bbe02fd3d99b9b960',
+  url: 'https://app.notion.com/p/3c0974b8-09de-809b-be02-fd3d99b9b960'
+}
+Notion page navigation completed { pageKey: '3c0974b809de809bbe02fd3d99b9b960', durationMs: 46 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de809bbe02fd3d99b9b960',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de809bbe02fd3d99b9b960',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de809bbe02fd3d99b9b960' }
+Notion page expansion completed { pageKey: '3c0974b809de809bbe02fd3d99b9b960', durationMs: 11 }
+Notion page scrolling started { pageKey: '3c0974b809de809bbe02fd3d99b9b960' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de809bbe02fd3d99b9b960', durationMs: 340 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de809bbe02fd3d99b9b960',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de809bbe02fd3d99b9b960',
+  itemCount: 19,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de803f8c85d777b9844e45',
+  url: 'https://app.notion.com/p/3c0974b8-09de-803f-8c85-d777b9844e45'
+}
+Notion page navigation completed { pageKey: '3c0974b809de803f8c85d777b9844e45', durationMs: 43 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de803f8c85d777b9844e45',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de803f8c85d777b9844e45',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de803f8c85d777b9844e45' }
+Notion page expansion completed { pageKey: '3c0974b809de803f8c85d777b9844e45', durationMs: 10 }
+Notion page scrolling started { pageKey: '3c0974b809de803f8c85d777b9844e45' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de803f8c85d777b9844e45', durationMs: 337 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de803f8c85d777b9844e45',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de803f8c85d777b9844e45',
+  itemCount: 20,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de807d93daf6b15fd14bbb',
+  url: 'https://app.notion.com/p/3c0974b8-09de-807d-93da-f6b15fd14bbb'
+}
+Notion page navigation completed { pageKey: '3c0974b809de807d93daf6b15fd14bbb', durationMs: 52 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de807d93daf6b15fd14bbb',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de807d93daf6b15fd14bbb',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de807d93daf6b15fd14bbb' }
+Notion page expansion completed { pageKey: '3c0974b809de807d93daf6b15fd14bbb', durationMs: 11 }
+Notion page scrolling started { pageKey: '3c0974b809de807d93daf6b15fd14bbb' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de807d93daf6b15fd14bbb', durationMs: 337 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de807d93daf6b15fd14bbb',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de807d93daf6b15fd14bbb',
+  itemCount: 21,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b',
+  url: 'https://app.notion.com/p/3c0974b8-09de-80b3-a7d4-ec2ceeecde6b'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b', durationMs: 47 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80b3a7d4ec2ceeecde6b',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b' }
+Notion page expansion completed { pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b', durationMs: 10 }
+Notion page scrolling started { pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b', durationMs: 338 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80b3a7d4ec2ceeecde6b',
+  itemCount: 22,
+  byteSize: 15
+}
+Notion page navigation started {
+  pageKey: '3c0974b809de80c8803ff80dc981389f',
+  url: 'https://app.notion.com/p/3c0974b8-09de-80c8-803f-f80dc981389f'
+}
+Notion page navigation completed { pageKey: '3c0974b809de80c8803ff80dc981389f', durationMs: 42 }
+Notion child-page discovery diagnostics {
+  currentPageKey: '3c0974b809de80c8803ff80dc981389f',
+  totalAnchors: 1,
+  pageIdAnchors: 1,
+  acceptedAnchors: 1
+}
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c8803ff80dc981389f',
+  phase: 'initial',
+  count: 0
+}
+Notion page expansion started { pageKey: '3c0974b809de80c8803ff80dc981389f' }
+Notion page expansion completed { pageKey: '3c0974b809de80c8803ff80dc981389f', durationMs: 9 }
+Notion page scrolling started { pageKey: '3c0974b809de80c8803ff80dc981389f' }
+Notion scroll step started { projectId: 'local-test', step: 0 }
+Notion scroll step completed { projectId: 'local-test', step: 0, height: 1000, y: 0 }
+Notion page scrolling completed { pageKey: '3c0974b809de80c8803ff80dc981389f', durationMs: 356 }
+Notion child-page links discovered {
+  pageKey: '3c0974b809de80c8803ff80dc981389f',
+  phase: 'after-scroll',
+  count: 0,
+  total: 0,
+  links: []
+}
+Notion page collected {
+  projectId: 'local-test',
+  pageKey: '3c0974b809de80c8803ff80dc981389f',
+  itemCount: 23,
+  byteSize: 15
+}
+Notion snapshot storage skipped { projectId: 'local-test', itemCount: 23, totalBytes: 8925 }
+Notion crawl completed { projectId: 'local-test', itemCount: 23, totalBytes: 8925 }

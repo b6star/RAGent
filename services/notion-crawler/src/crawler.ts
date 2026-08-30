@@ -22,14 +22,21 @@ type PageSnapshot = {
   y: number;
   viewportHeight: number;
 };
+type CrawlTimings = {
+  navigationMs: number;
+  expansionMs: number;
+  scrollingMs: number;
+  linkDiscoveryMs: number;
+};
 
 export async function crawlNotionSource(
   request: CrawlRequest
 ): Promise<NotionCollectionResult> {
   const canonicalUrl = normalizeNotionUrl(request.url);
-  if (!canonicalUrl || canonicalUrl !== request.url) {
+  if (!canonicalUrl) {
     throw new Error("A canonical public Notion URL is required");
   }
+  const canonicalRequest = {...request, url: canonicalUrl};
   const browser = await chromium.launch({
     headless: true,
     args: ["--disable-dev-shm-usage", "--no-sandbox"],
@@ -42,8 +49,8 @@ export async function crawlNotionSource(
   });
   await installNetworkGuard(context);
   try {
-    const items = await crawlPages(context, request);
-    return await persistSnapshot(request, items);
+    const items = await crawlPages(context, canonicalRequest);
+    return await persistSnapshot(canonicalRequest, items);
   } finally {
     await browser.close();
   }
@@ -58,6 +65,9 @@ async function crawlPages(
   const queued = new Set<string>();
   const queue: QueuedPage[] = [{url: request.url, depth: 0}];
   const items: NotionSnapshotItem[] = [];
+  const timingTotals: CrawlTimings = {
+    navigationMs: 0, expansionMs: 0, scrollingMs: 0, linkDiscoveryMs: 0,
+  };
   let totalBytes = 0;
   queued.add(notionPageKey(request.url));
 
@@ -81,6 +91,9 @@ async function crawlPages(
         throw new Error("A Notion page exceeded the configured byte limit");
       }
       totalBytes += byteSize;
+      for (const key of Object.keys(timingTotals) as Array<keyof CrawlTimings>) {
+        timingTotals[key] += collected.timings[key];
+      }
       if (totalBytes > request.policy.maximumTotalBytes) {
         throw new Error("Notion content exceeded the configured total limit");
       }
@@ -111,6 +124,7 @@ async function crawlPages(
       await page.close();
     }
   }
+  console.log("Notion crawl timing summary", timingTotals);
   return items;
 }
 
@@ -124,33 +138,171 @@ async function collectNotionPage(
   finalUrl: string;
   text: string;
   links: string[];
+  timings: CrawlTimings;
 }> {
+  const navigationStartedAt = Date.now();
   console.log("Notion page navigation started", {pageKey, url});
   await page.goto(url, {
     waitUntil: "commit",
     timeout: request.policy.navigationTimeoutMilliseconds,
   });
-  console.log("Notion page navigation completed", {pageKey});
+  console.log("Notion page navigation completed", {
+    pageKey,
+    durationMs: Date.now() - navigationStartedAt,
+  });
   await page.waitForTimeout(request.policy.renderWaitMilliseconds);
+  const navigationMs = Date.now() - navigationStartedAt;
+  const initialLinkDiscoveryStartedAt = Date.now();
+  const initialChildLinks = await extractChildPageLinks(page, pageKey, false);
+  const initialLinkDiscoveryMs = Date.now() - initialLinkDiscoveryStartedAt;
+  const isDatabaseView = new URL(url).searchParams.has("v");
+  console.log("Notion child-page links discovered", {
+    pageKey,
+    phase: "initial",
+    count: initialChildLinks.length,
+  });
+  const expansionStartedAt = Date.now();
   console.log("Notion page expansion started", {pageKey});
-  await expandPageContent(page, request);
-  console.log("Notion page expansion completed", {pageKey});
+  if (isDatabaseView) {
+    console.log("Notion page expansion skipped", {
+      pageKey,
+      reason: "database-view",
+    });
+  } else {
+    await expandPageContent(page, request);
+  }
+  const expansionMs = Date.now() - expansionStartedAt;
+  console.log("Notion page expansion completed", {
+    pageKey,
+    durationMs: Date.now() - expansionStartedAt,
+  });
+  const scrollingStartedAt = Date.now();
   console.log("Notion page scrolling started", {pageKey});
-  const snapshots = await scrollAndCollect(page, request);
-  await expandPageContent(page, request);
-  snapshots.push(...await scrollAndCollect(page, request));
-  console.log("Notion page scrolling completed", {pageKey});
+  const scrollResult = await scrollAndCollect(
+    page,
+    pageKey,
+    request,
+    isDatabaseView
+  );
+  const scrollingMs = Date.now() - scrollingStartedAt;
+  console.log("Notion page scrolling completed", {
+    pageKey,
+    durationMs: Date.now() - scrollingStartedAt,
+  });
+  const renderedChildLinks = await extractChildPageLinks(
+    page, pageKey, true, isDatabaseView, false
+  );
+  const finalLinkDiscoveryStartedAt = Date.now();
+  const childLinks = uniqueNotionLinks(
+    [...initialChildLinks, ...scrollResult.links, ...renderedChildLinks],
+    pageKey
+  );
+  const linkDiscoveryMs = initialLinkDiscoveryMs +
+    (Date.now() - finalLinkDiscoveryStartedAt);
+  console.log("Notion child-page links discovered", {
+    pageKey,
+    phase: "after-scroll",
+    count: renderedChildLinks.length,
+    total: childLinks.length,
+    links: childLinks,
+  });
   const finalUrl = normalizeNotionUrl(page.url());
   if (!finalUrl) throw new Error("Notion navigation left the allowed domains");
   return {
     title: await page.title(),
     finalUrl,
-    text: mergeTextSnapshots(snapshots.map((snapshot) => snapshot.text)),
-    links: uniqueNotionLinks(
-      snapshots.flatMap((snapshot) => snapshot.links),
-      pageKey
+    text: mergeTextSnapshots(
+      scrollResult.snapshots.map((snapshot) => snapshot.text)
     ),
+    links: childLinks,
+    timings: {
+      navigationMs,
+      expansionMs,
+      scrollingMs,
+      linkDiscoveryMs,
+    },
   };
+}
+
+type RawChildLink = {
+  url: string;
+  text: string;
+  excludedRegion: boolean;
+  childPageSignal: boolean;
+  pageIdSignal: boolean;
+  beforeFirstHeading: boolean;
+};
+
+/**
+ * Finds only links that look like Notion child-page blocks in the initial DOM.
+ * Navigation and breadcrumb links are intentionally excluded before scrolling.
+ * @param {Page} page Rendered Notion page
+ * @param {string} currentPageKey Current page ID key
+ * @return {Promise<string[]>} Safe child-page URLs
+ */
+async function extractChildPageLinks(
+  page: Page,
+  currentPageKey: string,
+  allowBeforeFirstHeading = false,
+  broadPageLinks = false,
+  logDiagnostics = true
+): Promise<string[]> {
+  const links = await page.locator("a[href]").evaluateAll((anchors) => {
+    const firstHeading = document.querySelector("h1, h2, h3");
+    return anchors.map((anchor) => {
+      const element = anchor as HTMLAnchorElement;
+      let node: HTMLElement | null = element;
+      let excludedRegion = false;
+      let childPageSignal = false;
+      while (node) {
+        const tag = node.tagName.toLowerCase();
+        const role = node.getAttribute("role")?.toLowerCase() ?? "";
+        const aria = node.getAttribute("aria-label")?.toLowerCase() ?? "";
+        const className = typeof node.className === "string" ?
+          node.className.toLowerCase() : "";
+        const blockType = node.getAttribute("data-block-type")?.toLowerCase() ?? "";
+        excludedRegion = excludedRegion || tag === "nav" || tag === "header" ||
+          tag === "footer" || role === "navigation" || role === "banner" ||
+          role === "contentinfo" || aria.includes("breadcrumb");
+        childPageSignal = childPageSignal || blockType.includes("child_page") ||
+          blockType.includes("collection_view_page") ||
+          className.includes("child-page") || className.includes("page-link");
+        if (tag === "main" || tag === "article" || role === "main") break;
+        node = node.parentElement;
+      }
+      const pageIdSignal =
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+          .test(element.href) || /[0-9a-f]{32}/i.test(element.href);
+      const beforeFirstHeading = firstHeading !== null &&
+        Boolean(firstHeading.compareDocumentPosition(element) &
+          Node.DOCUMENT_POSITION_PRECEDING);
+      return {
+        url: element.href,
+        text: element.innerText.trim(),
+        excludedRegion,
+        childPageSignal,
+        pageIdSignal,
+        beforeFirstHeading,
+      } satisfies RawChildLink;
+    });
+  });
+  const candidates = links.filter((link) => link.text &&
+    (broadPageLinks ? true :
+      (link.childPageSignal || link.pageIdSignal)) &&
+    !link.excludedRegion &&
+    (allowBeforeFirstHeading || !link.beforeFirstHeading));
+  if (logDiagnostics) {
+    console.log("Notion child-page discovery diagnostics", {
+      currentPageKey,
+      totalAnchors: links.length,
+      pageIdAnchors: links.filter((link) => link.pageIdSignal).length,
+      acceptedAnchors: candidates.length,
+    });
+  }
+  return uniqueNotionLinks(
+    candidates.map((link) => link.url),
+    currentPageKey
+  );
 }
 
 async function expandPageContent(
@@ -167,10 +319,10 @@ async function expandPageContent(
     for (let index = 0; index < closedCount; index += 1) {
       const element = closedElements.nth(index);
       if (await element.isVisible().catch(() => false)) {
-        await element.click({
+        const clickedElement = await element.click({
           timeout: request.policy.expansionClickTimeoutMilliseconds,
-        }).catch(() => undefined);
-        clicked += 1;
+        }).then(() => true).catch(() => false);
+        if (clickedElement) clicked += 1;
       }
     }
     const replyButtons = page.locator("button, [role=\"button\"]").filter({
@@ -183,10 +335,10 @@ async function expandPageContent(
     for (let index = 0; index < replyCount; index += 1) {
       const button = replyButtons.nth(index);
       if (await button.isVisible().catch(() => false)) {
-        await button.click({
+        const clickedButton = await button.click({
           timeout: request.policy.expansionClickTimeoutMilliseconds,
-        }).catch(() => undefined);
-        clicked += 1;
+        }).then(() => true).catch(() => false);
+        if (clickedButton) clicked += 1;
       }
     }
     if (!clicked) break;
@@ -196,13 +348,24 @@ async function expandPageContent(
 
 async function scrollAndCollect(
   page: Page,
-  request: CrawlRequest
-): Promise<PageSnapshot[]> {
+  pageKey: string,
+  request: CrawlRequest,
+  broadPageLinks = false
+): Promise<{snapshots: PageSnapshot[]; links: string[]}> {
   const snapshots: PageSnapshot[] = [];
+  const discoveredLinks: string[] = [];
   let previousHeight = 0;
   let stableCount = 0;
+  let stableDatabaseLinks = 0;
+  let databaseContainerReady = false;
   await page.evaluate(() => window.scrollTo(0, 0));
   for (let step = 0; step < request.policy.maximumScrollSteps; step += 1) {
+    if (step === 0 || step % 5 === 0) {
+      console.log("Notion scroll step started", {
+        projectId: request.projectId,
+        step,
+      });
+    }
     const snapshot = await page.evaluate(() => ({
       text: document.body.innerText,
       links: Array.from(document.querySelectorAll<HTMLAnchorElement>(
@@ -213,18 +376,138 @@ async function scrollAndCollect(
       viewportHeight: window.innerHeight,
     }));
     snapshots.push(snapshot);
+    discoveredLinks.push(
+      ...(await extractChildPageLinks(
+        page, pageKey, true, broadPageLinks, false
+      ))
+    );
+    discoveredLinks.push(
+        ...(await extractDatabaseRowLinks(page, pageKey, false))
+    );
+    const linkCountBeforeScroll = uniqueNotionLinks(
+      discoveredLinks, pageKey
+    ).length;
+    if (broadPageLinks) {
+      if (!databaseContainerReady) {
+        await page.evaluate(() => {
+          const containers = Array.from(document.querySelectorAll<HTMLElement>(
+            "*"
+          )).filter((element) => {
+            const style = getComputedStyle(element);
+            return (style.overflowY === "auto" || style.overflowY === "scroll") &&
+              element.scrollHeight > element.clientHeight + 20;
+          });
+          const container = containers.sort((left, right) =>
+            (right.scrollHeight - right.clientHeight) -
+            (left.scrollHeight - left.clientHeight)
+          )[0];
+          container?.setAttribute("data-ragent-db-scroll", "true");
+        });
+        databaseContainerReady = true;
+      }
+      await page.evaluate(() => {
+        const container = document.querySelector<HTMLElement>(
+          "[data-ragent-db-scroll]"
+        );
+        if (container) {
+          container.scrollTop += Math.max(container.clientHeight * 0.8, 500);
+        }
+      });
+      const linkCountAfterScroll = uniqueNotionLinks(
+        discoveredLinks, pageKey
+      ).length;
+      stableDatabaseLinks = linkCountAfterScroll === linkCountBeforeScroll ?
+        stableDatabaseLinks + 1 : 0;
+      if (stableDatabaseLinks >= 3) break;
+    }
     const reachedBottom = snapshot.y + snapshot.viewportHeight >=
       snapshot.height - 10;
     stableCount = reachedBottom && snapshot.height === previousHeight ?
       stableCount + 1 : 0;
-    if (stableCount >= request.policy.stableScrollIterations) break;
+    if (!broadPageLinks && stableCount >= request.policy.stableScrollIterations) {
+      break;
+    }
     previousHeight = snapshot.height;
     await page.evaluate(() => {
       window.scrollBy(0, Math.max(window.innerHeight * 0.8, 600));
     });
     await page.waitForTimeout(request.policy.scrollWaitMilliseconds);
+    if (step === 0 || step % 5 === 0) {
+      console.log("Notion scroll step completed", {
+        projectId: request.projectId,
+        step,
+        height: snapshot.height,
+        y: snapshot.y,
+      });
+    }
   }
-  return snapshots;
+  return {
+    snapshots,
+    links: uniqueNotionLinks(discoveredLinks, pageKey),
+  };
+}
+
+/** Extracts Notion database row page IDs exposed on row block elements. */
+async function extractDatabaseRowLinks(
+  page: Page,
+  currentPageKey: string,
+  logDiagnostics = true
+): Promise<string[]> {
+  const rowInfo = await page.evaluate(() => {
+    const selectors = [
+      ".notion-collection_view_page-block",
+      ".notion-table-view-row",
+      ".notion-list-view-row",
+      ".notion-page-block.notion-collection-item",
+    ];
+    const selectorCounts = Object.fromEntries(selectors.map((selector) => [
+      selector,
+      document.querySelectorAll(selector).length,
+    ]));
+    const rows = selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll<HTMLElement>(selector))
+    );
+    const blockElements = Array.from(document.querySelectorAll<HTMLElement>(
+      "[data-block-id]"
+    ));
+    const blockIdSamples = blockElements.slice(0, 20).map((element) => ({
+      blockId: element.getAttribute("data-block-id"),
+      className: typeof element.className === "string" ?
+        element.className : "",
+      role: element.getAttribute("role"),
+      text: element.innerText.trim().slice(0, 80),
+    }));
+    const rowBlockIds = rows.map((row) => {
+      const blockId = row.getAttribute("data-block-id") ??
+        row.closest<HTMLElement>("[data-block-id]")?.getAttribute(
+          "data-block-id"
+        );
+      return blockId ?? "";
+    }).filter((blockId) =>
+      /^[0-9a-f]{32}$/i.test(blockId) ||
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(blockId)
+    );
+    return {selectorCounts, blockElements: blockElements.length,
+      blockIdSamples, rowBlockIds};
+  });
+  if (logDiagnostics) {
+    console.log("Notion database row diagnostics", {
+      currentPageKey,
+      selectorCounts: rowInfo.selectorCounts,
+      blockElements: rowInfo.blockElements,
+    });
+  }
+  const links = rowInfo.rowBlockIds.map((blockId) =>
+    `https://app.notion.com/p/${blockId}`
+  );
+  const uniqueLinks = uniqueNotionLinks(links, currentPageKey);
+  if (logDiagnostics && uniqueLinks.length) {
+    console.log("Notion database row pages discovered", {
+      currentPageKey,
+      count: uniqueLinks.length,
+    });
+  }
+  return uniqueLinks;
 }
 
 export function mergeTextSnapshots(textSnapshots: string[]): string {

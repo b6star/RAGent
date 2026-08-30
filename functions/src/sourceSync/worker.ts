@@ -59,6 +59,11 @@ export const syncPublicSources = onTaskDispatched({
     logger.error("Ignoring malformed source synchronization task");
     return;
   }
+  logger.info("syncPublicSources invoked", {
+    projectId,
+    jobId,
+    retryCount: request.retryCount,
+  });
   const claimedJob = await claimJob(projectId, jobId);
   if (!claimedJob) {
     logger.info("Ignoring stale source synchronization task", {
@@ -94,12 +99,18 @@ export const syncPublicSources = onTaskDispatched({
         });
         return result;
       } catch (error) {
-        logger.error("Source collection failed", {
-          projectId,
-          jobId,
-          sourceType: source.sourceType,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        const errorMessage = error instanceof Error ?
+          error.message : String(error);
+        logger.error(
+          `Source collection failed sourceType=${source.sourceType}: ` +
+          errorMessage,
+          {
+            projectId,
+            jobId,
+            sourceType: source.sourceType,
+            errorMessage,
+          }
+        );
         throw error;
       }
     }));

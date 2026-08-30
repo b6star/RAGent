@@ -1,10 +1,9 @@
-FROM node:22-bookworm-slim
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
-RUN npx playwright install --with-deps chromium
 
 COPY tsconfig.json ./
 COPY src ./src
