@@ -26,6 +26,15 @@ export type SourceSyncError = {
   occurredAt: FirestoreServerTime;
 };
 
+export type SourceDocumentChanges = {
+  added: string[];
+  modified: string[];
+  deleted: string[];
+  addedCount: number;
+  modifiedCount: number;
+  deletedCount: number;
+};
+
 /**
  * Member-readable aggregate state.
  * Path: projects/{projectId}/sourceSync/status
@@ -74,6 +83,7 @@ export type ProjectSourceDocument = {
   extractorVersion: string;
   activeRevisionId: string | null;
   stagingRevisionId: string | null;
+  documentChanges?: SourceDocumentChanges | null;
   lastCheckedAt: FirestoreServerTime | null;
   lastChangedAt: FirestoreServerTime | null;
   lastCompletedAt: FirestoreServerTime | null;

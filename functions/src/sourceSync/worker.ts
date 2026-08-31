@@ -1,5 +1,7 @@
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
+import {gunzip} from "node:zlib";
+import {promisify} from "node:util";
 import {defineString} from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import {onTaskDispatched} from "firebase-functions/v2/tasks";
@@ -8,7 +10,12 @@ import {SOURCE_SYNC_CONFIG} from "./config";
 import {normalizeSourceSyncError} from "./errors";
 import {sourceSyncReferences} from "./firestore";
 import {collectGithubSource} from "./github";
-import {sha256, SourceCollectionResult} from "./manifest";
+import {
+  compareSnapshots,
+  sha256,
+  SourceCollectionResult,
+  SourceSnapshot,
+} from "./manifest";
 import {
   createInitialSourceSyncStatus,
   PublicSourceType,
@@ -25,6 +32,9 @@ type ClaimedJob = {
   jobId: string;
   sources: ClaimedSource[];
 };
+
+const gunzipAsync = promisify(gunzip);
+const MAX_CHANGE_KEYS = 1000;
 
 const notionCrawlerUrl = defineString("NOTION_CRAWLER_URL", {
   description: "Private Cloud Run URL for the RAGent Notion crawler",
@@ -213,6 +223,26 @@ async function completeJob(
 ): Promise<void> {
   const db = getFirestore();
   const references = sourceSyncReferences(db, job.projectId);
+  const currentSources = await Promise.all(job.sources.map(async (source) => {
+    const reference = source.sourceType === "github" ?
+      references.github : references.notion;
+    return {source, snapshot: await reference.get()};
+  }));
+  const changes = new Map<
+    PublicSourceType,
+    ReturnType<typeof compareSnapshots>
+  >();
+  for (const result of results) {
+    const current = currentSources.find((entry) =>
+      entry.source.sourceType === result.sourceType)?.snapshot;
+    const previousPath = current?.get("snapshotObjectPath");
+    const previous = typeof previousPath === "string" ?
+      await downloadSnapshot(getStorage().bucket(), previousPath) : null;
+    const next = await downloadSnapshot(
+      getStorage().bucket(), result.snapshotObjectPath
+    );
+    if (next) changes.set(result.sourceType, compareSnapshots(previous, next));
+  }
   const staged = await db.runTransaction(async (transaction) => {
     const [control, github, notion] = await transaction.getAll(
       references.control,
@@ -228,6 +258,7 @@ async function completeJob(
       const current = result.sourceType === "github" ? github : notion;
       const changed = current.get("manifestHash") !== result.manifestHash;
       if (changed) changedTypes.push(result.sourceType);
+      const documentChanges = changes.get(result.sourceType);
       transaction.set(reference, {
         manifestHash: result.manifestHash,
         snapshotObjectPath: result.snapshotObjectPath,
@@ -238,6 +269,8 @@ async function completeJob(
         extractorVersion: result.extractorVersion,
         status: changed ? "changed" : "ready",
         stagingRevisionId: changed ? result.revisionId : null,
+        documentChanges: documentChanges ?
+          summarizeChanges(documentChanges) : null,
         activeRevisionId: changed ? current.get("activeRevisionId") ?? null :
           result.revisionId,
         lastCheckedAt: now,
@@ -259,6 +292,11 @@ async function completeJob(
       status: changedTypes.length ? "changed" : "ready",
       aggregateRevisionId,
       changedSourceTypes: changedTypes,
+      documentChanges: Object.fromEntries(
+        [...changes.entries()].map(([type, value]) => [
+          type, summarizeChanges(value),
+        ])
+      ),
       updatedAt: now,
     }, {merge: true});
     return {changedTypes, aggregateRevisionId};
@@ -306,6 +344,46 @@ async function completeJob(
       updatedAt: now,
     }, {merge: true});
   });
+}
+
+/**
+ * Downloads and decodes a stored source snapshot.
+ * @param {object} bucket Storage bucket
+ * @param {string} objectPath Snapshot object path
+ * @return {Promise<SourceSnapshot|null>} Decoded snapshot or null
+ */
+async function downloadSnapshot(
+  bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
+  objectPath: string
+): Promise<SourceSnapshot | null> {
+  try {
+    const [compressed] = await bucket.file(objectPath).download();
+    return JSON.parse(
+      (await gunzipAsync(compressed)).toString("utf8")
+    ) as SourceSnapshot;
+  } catch (error) {
+    logger.warn("Source manifest comparison skipped snapshot", {
+      objectPath,
+      error,
+    });
+    return null;
+  }
+}
+
+/**
+ * Limits persisted change lists while preserving complete counts.
+ * @param {object} changes Computed manifest changes
+ * @return {object} Persistable change summary
+ */
+function summarizeChanges(changes: ReturnType<typeof compareSnapshots>) {
+  return {
+    added: changes.added.slice(0, MAX_CHANGE_KEYS),
+    modified: changes.modified.slice(0, MAX_CHANGE_KEYS),
+    deleted: changes.deleted.slice(0, MAX_CHANGE_KEYS),
+    addedCount: changes.added.length,
+    modifiedCount: changes.modified.length,
+    deletedCount: changes.deleted.length,
+  };
 }
 
 /**

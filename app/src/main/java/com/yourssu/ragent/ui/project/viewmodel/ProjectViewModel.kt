@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectDocument
@@ -19,6 +20,7 @@ import com.yourssu.ragent.model.ProjectMemberDocument
 import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.PublicSourceUrl
 import com.yourssu.ragent.model.SourceUrlValidation
+import com.yourssu.ragent.model.SourceSyncStatusDocument
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.toProject
 import com.yourssu.ragent.model.toProjectMember
@@ -35,6 +37,31 @@ class ProjectViewModel : ViewModel() {
         private set
     var loadError by mutableStateOf<String?>(null)
         private set
+    var sourceSyncStatuses by mutableStateOf<Map<String, SourceSyncStatusDocument>>(emptyMap())
+        private set
+    private val sourceSyncListeners = mutableMapOf<String, ListenerRegistration>()
+
+    fun observeSourceSync(projectId: String) {
+        if (sourceSyncListeners.containsKey(projectId)) return
+        val registration = Firebase.firestore.collection("projects").document(projectId)
+            .collection("sourceSync").document("status")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w("SourceSync", "Failed to observe source status", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                val status = snapshot.toObject(SourceSyncStatusDocument::class.java) ?: return@addSnapshotListener
+                sourceSyncStatuses = sourceSyncStatuses + (projectId to status)
+            }
+        sourceSyncListeners[projectId] = registration
+    }
+
+    override fun onCleared() {
+        sourceSyncListeners.values.forEach { it.remove() }
+        sourceSyncListeners.clear()
+        super.onCleared()
+    }
 
     fun loadProjects() {
         val uid = Firebase.auth.currentUser?.uid ?: run {

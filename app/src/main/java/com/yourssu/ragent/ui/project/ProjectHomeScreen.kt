@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -63,6 +64,7 @@ import com.yourssu.ragent.model.ProjectMember
 import com.yourssu.ragent.model.ProjectTab
 import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.Role
+import com.yourssu.ragent.model.SourceSyncStatusDocument
 import com.yourssu.ragent.ui.agent.theme.AgentTheme
 import com.yourssu.ragent.ui.agent.theme.AgentThemeType
 import com.yourssu.ragent.ui.agent.theme.AgentChatTheme
@@ -77,6 +79,7 @@ fun ProjectHomeScreen(
     selectedTab: ProjectTab,
     isLoading: Boolean,
     errorMessage: String?,
+    sourceSyncStatus: SourceSyncStatusDocument?,
     onRefresh: () -> Unit,
     onTabSelected: (ProjectTab) -> Unit,
     onBack: () -> Unit,
@@ -171,6 +174,14 @@ fun ProjectHomeScreen(
                             .fillMaxSize()
                             .padding(top = topPadding)
                     ) {
+                        SourceSyncStatusBanner(
+                            status = sourceSyncStatus
+                                ?: SourceSyncStatusDocument(status = "checking"),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .zIndex(2f)
+                                .padding(top = 8.dp)
+                        )
                         DocsTab(
                             project,
                             onBack,
@@ -321,6 +332,33 @@ fun ProjectHomeScreen(
                 onLeaveProject = onLeaveProject
             )
         }
+    }
+}
+
+@Composable
+private fun SourceSyncStatusBanner(
+    status: SourceSyncStatusDocument,
+    modifier: Modifier = Modifier
+) {
+    val (label, color) = when (status.status.lowercase()) {
+        "queued", "checking" -> "Source 확인 중" to Color(0xFF2563EB)
+        "changed" -> "Source 변경 감지됨" to Color(0xFFD97706)
+        "error" -> "Source 동기화 오류" to Color(0xFFDC2626)
+        "ready" -> "Source 최신 상태" to Color(0xFF16A34A)
+        else -> return
+    }
+    Surface(
+        modifier = modifier,
+        color = color.copy(alpha = 0.92f),
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 4.dp
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+        )
     }
 }
 

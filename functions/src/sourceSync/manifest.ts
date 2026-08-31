@@ -37,6 +37,45 @@ export type SourceCollectionResult = Omit<SourceSnapshot, "items"> & {
   snapshotObjectPath: string;
 };
 
+export type ManifestChangeSet = {
+  added: string[];
+  modified: string[];
+  deleted: string[];
+};
+
+/**
+ * Compares two snapshots by stable document key and content hash.
+ * @param {SourceSnapshot|null} previous Previously active snapshot
+ * @param {SourceSnapshot} current Newly collected snapshot
+ * @return {ManifestChangeSet} Added, modified, and deleted document keys
+ */
+export function compareSnapshots(
+  previous: SourceSnapshot | null,
+  current: SourceSnapshot
+): ManifestChangeSet {
+  const before = new Map(
+    (previous?.items ?? []).map((item) => [item.key, item.contentHash])
+  );
+  const after = new Map(
+    current.items.map((item) => [item.key, item.contentHash])
+  );
+  const added: string[] = [];
+  const modified: string[] = [];
+  const deleted: string[] = [];
+  for (const [key, hash] of after) {
+    if (!before.has(key)) added.push(key);
+    else if (before.get(key) !== hash) modified.push(key);
+  }
+  for (const key of before.keys()) {
+    if (!after.has(key)) deleted.push(key);
+  }
+  return {
+    added: added.sort(),
+    modified: modified.sort(),
+    deleted: deleted.sort(),
+  };
+}
+
 /**
  * Calculates a hexadecimal SHA-256 content hash.
  * @param {string|Uint8Array} value Content to hash

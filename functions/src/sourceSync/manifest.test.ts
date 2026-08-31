@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {createSourceSnapshot, sha256} from "./manifest";
+import {compareSnapshots, createSourceSnapshot, sha256} from "./manifest";
 
 test("manifest hashing is deterministic and sensitive to item content", () => {
   const itemA = {
@@ -43,3 +43,34 @@ test("manifest hashing is deterministic and sensitive to item content", () => {
   );
   assert.notEqual(first.manifestHash, changed.manifestHash);
 });
+
+test(
+  "snapshot comparison identifies added, modified, and deleted documents",
+  () => {
+    const previous = createSourceSnapshot(
+      "notion", "https://example.com", null, [
+        {key: "keep", url: null, title: "keep", content: "same",
+          contentHash: sha256("same"), byteSize: 4},
+        {key: "change", url: null, title: "change", content: "old",
+          contentHash: sha256("old"), byteSize: 3},
+        {key: "remove", url: null, title: "remove", content: "gone",
+          contentHash: sha256("gone"), byteSize: 4},
+      ]
+    );
+    const current = createSourceSnapshot(
+      "notion", "https://example.com", null, [
+        {key: "keep", url: null, title: "keep", content: "same",
+          contentHash: sha256("same"), byteSize: 4},
+        {key: "change", url: null, title: "change", content: "new",
+          contentHash: sha256("new"), byteSize: 3},
+        {key: "add", url: null, title: "add", content: "new",
+          contentHash: sha256("new"), byteSize: 3},
+      ]
+    );
+    assert.deepEqual(compareSnapshots(previous, current), {
+      added: ["add"],
+      modified: ["change"],
+      deleted: ["remove"],
+    });
+  }
+);

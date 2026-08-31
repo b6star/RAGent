@@ -11,7 +11,7 @@ export const SOURCE_SYNC_CONFIG = Object.freeze({
   hashAlgorithm: "sha256",
   manifestVersion: 1,
   extractorVersion: "public-link-v1",
-  throttleMilliseconds: 5 * 60 * 1000,
+  throttleMilliseconds: 10 * 60 * 1000,
   leaseMilliseconds: 30 * 60 * 1000,
   maximumAttempts: 3,
   errorCodeMaximumLength: 80,
