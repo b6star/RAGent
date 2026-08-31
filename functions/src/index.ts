@@ -186,6 +186,7 @@ async function writeAiUsage(
       provider,
       modelName,
       keySource,
+      usageCategory: keySource === "personal" ? "personal" : "developer",
       ...usage,
       projectId: projectId ?? null,
       projectName,

@@ -15,6 +15,7 @@ import {
 } from "./embedding";
 import {RagChunk} from "./chunking/types";
 import {promoteReadyRagRevision} from "./revision";
+import {writeServerUsage} from "../usage";
 
 /** Runs the server-side embedding queue created after source synchronization. */
 export const embedRagRevisionTask = onTaskDispatched({
@@ -27,6 +28,8 @@ export const embedRagRevisionTask = onTaskDispatched({
     request.data.projectId.trim() : "";
   const revisionId = typeof request.data?.revisionId === "string" ?
     request.data.revisionId.trim() : "";
+  const triggeredBy = typeof request.data?.triggeredBy === "string" ?
+    request.data.triggeredBy.trim() : "";
   if (!projectId || !revisionId) {
     throw new Error("Embedding task payload is invalid");
   }
@@ -116,6 +119,20 @@ export const embedRagRevisionTask = onTaskDispatched({
       status: "completed",
       updatedAt: completedAt,
     }, {merge: true});
+    if (triggeredBy) {
+      await writeServerUsage({
+        uid: triggeredBy,
+        usageId: `embedding-${revisionId}-attempt-${request.retryCount}`,
+        category: "server_embedding",
+        inputTokens: estimateTokens(chunks),
+        chunkCount: chunks.length,
+        characterCount: chunks.reduce(
+          (total, chunk) => total + chunk.content.length, 0
+        ),
+        projectId,
+        modelName: RAG_CONFIG.embedding.model,
+      });
+    }
     logger.info("RAG embedding completed", {
       projectId,
       revisionId,
@@ -135,4 +152,10 @@ function lastCompletedChunkId(
     if (status === "reused" || status === "embedded") return snapshots[index].id;
   }
   return null;
+}
+
+function estimateTokens(chunks: readonly RagChunk[]): number {
+  return chunks.reduce(
+    (total, chunk) => total + Math.ceil(chunk.content.length / 4), 0
+  );
 }

@@ -10,6 +10,7 @@ import {RAG_CONFIG} from "./config";
 import {RagChunk} from "./chunking/types";
 import {RagRevisionDocument, validateEmbeddingContract} from "./model";
 import {SOURCE_SYNC_CONFIG} from "../sourceSync/config";
+import {writeServerUsage} from "../usage";
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const DEFAULT_TOP_K = 8;
@@ -90,6 +91,16 @@ export const searchRagChunks = onCall({
     throw new HttpsError("failed-precondition", "Embedding API key is not configured.");
   }
   const queryVector = await createQueryEmbedding(apiKey, query);
+  await writeServerUsage({
+    uid: request.auth.uid,
+    usageId: `search-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    category: "server_search",
+    inputTokens: Math.ceil(query.length / 4),
+    chunkCount: 1,
+    characterCount: query.length,
+    projectId,
+    modelName: RAG_CONFIG.embedding.model,
+  });
   const vectorSnapshot = await references.vectors(activeRevisionId)
     .findNearest({
       vectorField: "embedding",

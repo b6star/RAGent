@@ -10,6 +10,7 @@ import {ragReferences} from "./firestore";
 import {RagChunk} from "./chunking/types";
 import {RagRevisionDocument} from "./model";
 import {assertRagTransition, promoteReadyRagRevision} from "./revision";
+import {writeServerUsage} from "../usage";
 
 export const embeddingApiKey = defineSecret("GEMINI_EMBEDDING_API_KEY");
 
@@ -206,6 +207,20 @@ export const runRagEmbedding = onCall({
     outputTokenCount: 0,
     updatedAt: completedAt,
   }, {merge: true});
+  await writeServerUsage({
+    uid: request.auth.uid,
+    usageId: `embedding-${revisionId}-manual-${request.auth.uid}`,
+    category: "server_embedding",
+    inputTokens: chunks.reduce(
+      (total, chunk) => total + Math.ceil(chunk.content.length / 4), 0
+    ),
+    chunkCount: chunks.length,
+    characterCount: chunks.reduce(
+      (total, chunk) => total + chunk.content.length, 0
+    ),
+    projectId,
+    modelName: RAG_CONFIG.embedding.model,
+  });
   return {
     revisionId,
     chunkCount: chunks.length,

@@ -3,10 +3,13 @@ package com.yourssu.ragent.model
 data class AiUsageRecord(
     val modelName: String,
     val keySource: String,
+    val usageCategory: String,
     val inputTokens: Long,
     val outputTokens: Long,
     val thoughtsTokens: Long,
     val totalTokens: Long,
+    val chunkCount: Long,
+    val characterCount: Long,
     val projectId: String?,
     val projectName: String?,
     val sessionId: String?,
@@ -19,7 +22,9 @@ data class AiTokenUsage(
     val outputTokens: Long = 0,
     val thoughtsTokens: Long = 0,
     val totalTokens: Long = 0,
-    val requestCount: Int = 0
+    val requestCount: Int = 0,
+    val chunkCount: Long = 0,
+    val characterCount: Long = 0
 )
 
 data class AiModelTokenUsage(
@@ -32,7 +37,9 @@ data class AiProjectTokenUsage(
     val projectName: String?,
     val usage: AiTokenUsage,
     val personalTokens: Long,
-    val developerTokens: Long
+    val developerTokens: Long,
+    val serverEmbeddingTokens: Long = 0,
+    val serverSearchTokens: Long = 0
 )
 
 data class AiSessionTokenUsage(
@@ -41,6 +48,8 @@ data class AiSessionTokenUsage(
     val usage: AiTokenUsage,
     val personalTokens: Long,
     val developerTokens: Long,
+    val serverEmbeddingTokens: Long = 0,
+    val serverSearchTokens: Long = 0,
     val models: List<AiModelTokenUsage>,
     val lastUsageAt: Long?
 )
@@ -49,19 +58,25 @@ data class AiUsageDashboard(
     val total: AiTokenUsage = AiTokenUsage(),
     val personal: AiTokenUsage = AiTokenUsage(),
     val developer: AiTokenUsage = AiTokenUsage(),
+    val serverEmbedding: AiTokenUsage = AiTokenUsage(),
+    val serverSearch: AiTokenUsage = AiTokenUsage(),
     val personalModels: List<AiModelTokenUsage> = emptyList(),
     val projectUsages: Map<String, AiProjectTokenUsage> = emptyMap(),
     val sessionUsages: Map<String, AiSessionTokenUsage> = emptyMap()
 )
 
 fun List<AiUsageRecord>.toAiUsageDashboard(): AiUsageDashboard {
-    val personalRecords = filter { it.keySource == "personal" }
-    val developerRecords = filter { it.keySource == "developer" }
+    val personalRecords = filter { it.category() == "personal" }
+    val developerRecords = filter { it.category() == "developer" }
+    val embeddingRecords = filter { it.category() == "server_embedding" }
+    val searchRecords = filter { it.category() == "server_search" }
 
     return AiUsageDashboard(
         total = summarizeUsage(),
         personal = personalRecords.summarizeUsage(),
         developer = developerRecords.summarizeUsage(),
+        serverEmbedding = embeddingRecords.summarizeUsage(),
+        serverSearch = searchRecords.summarizeUsage(),
         personalModels = personalRecords.groupByModel(),
         projectUsages = filter { !it.projectId.isNullOrBlank() }
             .groupBy { checkNotNull(it.projectId) }
@@ -71,7 +86,9 @@ fun List<AiUsageRecord>.toAiUsageDashboard(): AiUsageDashboard {
                     projectName = records.latestSnapshotName(AiUsageRecord::projectName),
                     usage = records.summarizeUsage(),
                     personalTokens = records.personalTokens(),
-                    developerTokens = records.developerTokens()
+                    developerTokens = records.developerTokens(),
+                    serverEmbeddingTokens = records.serverEmbeddingTokens(),
+                    serverSearchTokens = records.serverSearchTokens()
                 )
             },
         sessionUsages = filter { !it.sessionId.isNullOrBlank() }
@@ -83,6 +100,8 @@ fun List<AiUsageRecord>.toAiUsageDashboard(): AiUsageDashboard {
                     usage = records.summarizeUsage(),
                     personalTokens = records.personalTokens(),
                     developerTokens = records.developerTokens(),
+                    serverEmbeddingTokens = records.serverEmbeddingTokens(),
+                    serverSearchTokens = records.serverSearchTokens(),
                     models = records.groupByModel(),
                     lastUsageAt = records.maxOfOrNull(AiUsageRecord::createdAt)
                 )
@@ -95,7 +114,9 @@ private fun List<AiUsageRecord>.summarizeUsage() = AiTokenUsage(
     outputTokens = sumOf(AiUsageRecord::outputTokens),
     thoughtsTokens = sumOf(AiUsageRecord::thoughtsTokens),
     totalTokens = sumOf(AiUsageRecord::totalTokens),
-    requestCount = size
+    requestCount = size,
+    chunkCount = sumOf(AiUsageRecord::chunkCount),
+    characterCount = sumOf(AiUsageRecord::characterCount)
 )
 
 private fun List<AiUsageRecord>.groupByModel(): List<AiModelTokenUsage> =
@@ -106,10 +127,24 @@ private fun List<AiUsageRecord>.groupByModel(): List<AiModelTokenUsage> =
         .sortedByDescending { it.usage.totalTokens }
 
 private fun List<AiUsageRecord>.personalTokens(): Long =
-    filter { it.keySource == "personal" }.sumOf(AiUsageRecord::totalTokens)
+    filter { it.category() == "personal" }.sumOf(AiUsageRecord::totalTokens)
 
 private fun List<AiUsageRecord>.developerTokens(): Long =
-    filter { it.keySource == "developer" }.sumOf(AiUsageRecord::totalTokens)
+    filter { it.category() == "developer" }.sumOf(AiUsageRecord::totalTokens)
+
+private fun List<AiUsageRecord>.serverEmbeddingTokens(): Long =
+    filter { it.category() == "server_embedding" }.sumOf(AiUsageRecord::totalTokens)
+
+private fun List<AiUsageRecord>.serverSearchTokens(): Long =
+    filter { it.category() == "server_search" }.sumOf(AiUsageRecord::totalTokens)
+
+private fun AiUsageRecord.category(): String = usageCategory.ifBlank {
+    when (keySource) {
+        "personal" -> "personal"
+        "developer" -> "developer"
+        else -> "unknown"
+    }
+}
 
 private fun List<AiUsageRecord>.latestSnapshotName(
     selector: (AiUsageRecord) -> String?
