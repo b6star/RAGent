@@ -8,7 +8,7 @@
     "manifestVersion": 1,
     "extractorVersion": "notion-playwright-v1",
     "hashAlgorithm": "sha256",
-    "maximumPages": 50,
+    "maximumPages": 100,
     "maximumCrawlDepth": 5,
     "maximumPageBytes": 2097152,
     "maximumTotalBytes": 52428800,

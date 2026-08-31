@@ -28,6 +28,10 @@ export function normalizeNotionUrl(rawUrl: string): string | null {
     }
     url.hostname = url.hostname.toLowerCase();
     url.pathname = url.pathname.replace(/\/$/, "");
+    url.pathname = url.pathname.replace(
+      DASHED_PAGE_ID,
+      (match) => match.replace(/-/g, "")
+    );
     return url.toString();
   } catch {
     return null;

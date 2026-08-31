@@ -34,7 +34,7 @@ export const SOURCE_SYNC_CONFIG = Object.freeze({
     maximumRuntimeMilliseconds: 20 * 60 * 1000,
   }),
   notion: Object.freeze({
-    maximumPages: 50,
+    maximumPages: 100,
     maximumCrawlDepth: 5,
     maximumPageBytes: 2 * 1024 * 1024,
     maximumTotalBytes: 50 * 1024 * 1024,

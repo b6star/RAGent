@@ -65,6 +65,8 @@ async function crawlPages(
   const queued = new Set<string>();
   const queue: QueuedPage[] = [{url: request.url, depth: 0}];
   const items: NotionSnapshotItem[] = [];
+  const depthCounts = new Map<number, number>();
+  const depthLinks = new Map<number, string[]>();
   const timingTotals: CrawlTimings = {
     navigationMs: 0, expansionMs: 0, scrollingMs: 0, linkDiscoveryMs: 0,
   };
@@ -105,6 +107,13 @@ async function crawlPages(
         contentHash: hashContent(collected.text),
         byteSize,
       });
+      depthCounts.set(
+        current.depth,
+        (depthCounts.get(current.depth) ?? 0) + 1
+      );
+      const linksAtDepth = depthLinks.get(current.depth) ?? [];
+      linksAtDepth.push(collected.finalUrl);
+      depthLinks.set(current.depth, linksAtDepth);
       console.log("Notion page collected", {
         projectId: request.projectId,
         pageKey,
@@ -125,6 +134,18 @@ async function crawlPages(
     }
   }
   console.log("Notion crawl timing summary", timingTotals);
+  console.log("Notion crawl depth summary", {
+    itemCount: items.length,
+    ...Object.fromEntries(
+      Array.from(
+        {length: request.policy.maximumCrawlDepth + 1},
+        (_, depth) => [`depth_${depth}`, {
+          count: depthCounts.get(depth) ?? 0,
+          links: depthLinks.get(depth) ?? [],
+        }]
+      )
+    ),
+  });
   return items;
 }
 
@@ -437,13 +458,16 @@ async function extractDatabaseRowLinks(
       ".notion-table-view-row",
       ".notion-list-view-row",
       ".notion-page-block.notion-collection-item",
+      ".notion-page-block",
     ];
     const selectorCounts = Object.fromEntries(selectors.map((selector) => [
       selector,
       document.querySelectorAll(selector).length,
     ]));
     const rows = selectors.flatMap((selector) =>
-      Array.from(document.querySelectorAll<HTMLElement>(selector))
+      Array.from(document.querySelectorAll<HTMLElement>(selector)).map((row) =>
+        ({row, selector})
+      )
     );
     const blockElements = Array.from(document.querySelectorAll<HTMLElement>(
       "[data-block-id]"
@@ -455,7 +479,27 @@ async function extractDatabaseRowLinks(
       role: element.getAttribute("role"),
       text: element.innerText.trim().slice(0, 80),
     }));
-    const rowBlockIds = rows.map((row) => {
+    const firstHeading = document.querySelector("h1, h2, h3");
+    const rowBlockIds = rows.map(({row, selector}) => {
+      const className = typeof row.className === "string" ?
+        row.className : "";
+      if (selector === ".notion-page-block" &&
+          (className.includes("notion-collection-item") ||
+           className.includes("notion-collection_view-block"))) return "";
+      if (selector === ".notion-page-block") {
+        let ancestor: HTMLElement | null = row.parentElement;
+        while (ancestor) {
+          const tag = ancestor.tagName.toLowerCase();
+          const role = ancestor.getAttribute("role")?.toLowerCase() ?? "";
+          if (tag === "nav" || tag === "header" || tag === "footer" ||
+              role === "navigation" || role === "banner" ||
+              role === "contentinfo") return "";
+          ancestor = ancestor.parentElement;
+        }
+      } else if (firstHeading && Boolean(
+        firstHeading.compareDocumentPosition(row) &
+        Node.DOCUMENT_POSITION_PRECEDING
+      )) return "";
       const blockId = row.getAttribute("data-block-id") ??
         row.closest<HTMLElement>("[data-block-id]")?.getAttribute(
           "data-block-id"
