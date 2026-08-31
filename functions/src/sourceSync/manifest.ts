@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {gzip} from "node:zlib";
+import {gzip, gunzip} from "node:zlib";
 import {promisify} from "node:util";
 
 import {Storage} from "firebase-admin/storage";
@@ -8,6 +8,7 @@ import {SOURCE_SYNC_CONFIG} from "./config";
 import {PublicSourceType} from "./model";
 
 const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 type StorageBucket = ReturnType<Storage["bucket"]>;
 
 export type SourceSnapshotItem = {
@@ -139,6 +140,20 @@ export function createSourceSnapshot(
 }
 
 /**
+ * Decodes snapshots returned either as raw JSON or gzip bytes.
+ * Cloud Storage may transparently decode objects marked with contentEncoding.
+ * @param {Buffer} data Downloaded snapshot bytes
+ * @return {Promise<SourceSnapshot>} Parsed source snapshot
+ */
+export async function decodeSourceSnapshot(
+  data: Buffer
+): Promise<SourceSnapshot> {
+  const isGzip = data.length >= 2 && data[0] === 0x1f && data[1] === 0x8b;
+  const json = isGzip ? await gunzipAsync(data) : data;
+  return JSON.parse(json.toString("utf8")) as SourceSnapshot;
+}
+
+/**
  * Returns the stable Cloud Storage path for an immutable revision snapshot.
  * @param {string} projectId Project document ID
  * @param {PublicSourceType} sourceType GitHub or Notion
@@ -175,7 +190,6 @@ export async function uploadSourceSnapshot(
     resumable: false,
     metadata: {
       contentType: "application/json",
-      contentEncoding: "gzip",
       cacheControl: "private, max-age=31536000, immutable",
     },
   });

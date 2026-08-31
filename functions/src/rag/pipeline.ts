@@ -10,6 +10,8 @@ import {ragReferences} from "./firestore";
 import {assertRagTransition, createPendingRagRevision} from "./revision";
 import {NormalizedDocument} from "../sourceSync/document";
 import {sourceSyncReferences} from "../sourceSync/firestore";
+import {sha256} from "../sourceSync/manifest";
+import {PublicSourceType} from "../sourceSync/model";
 
 const EMBEDDING_TASK_NAME = "embedRagRevisionTask";
 
@@ -36,16 +38,7 @@ export async function stageRagRevision(
   assertRagTransition(revision.status, "chunking");
 
   const sourceReferences = sourceSyncReferences(db, projectId);
-  const documents: NormalizedDocument[] = [];
-  for (const sourceReference of [sourceReferences.github, sourceReferences.notion]) {
-    const snapshot = await sourceReference.collection("documents")
-      .where("status", "==", "active")
-      .where("revisionState", "==", "active")
-      .get();
-    documents.push(...snapshot.docs.map((document) =>
-      document.data() as NormalizedDocument
-    ));
-  }
+  const documents = await loadActiveDocuments(sourceReferences);
   const chunks = documents.flatMap((document) => chunkDocument(document));
   if (!chunks.length) {
     await revisionReference.set({
@@ -76,6 +69,90 @@ export async function stageRagRevision(
     revisionId,
   });
   return revisionId;
+}
+
+async function loadActiveDocuments(
+  sourceReferences: ReturnType<typeof sourceSyncReferences>
+): Promise<NormalizedDocument[]> {
+  const documents: NormalizedDocument[] = [];
+  for (const sourceReference of [sourceReferences.github, sourceReferences.notion]) {
+    const snapshot = await sourceReference.collection("documents").get();
+    const activeDocuments = snapshot.docs
+      .filter((document) => document.get("status") === "active" &&
+        document.get("revisionState") === "active")
+      .map((document) => document.data() as NormalizedDocument);
+    if (activeDocuments.length) {
+      documents.push(...activeDocuments);
+      continue;
+    }
+    const source = await sourceReference.get();
+    const flatDocument = source.exists ? flatSourceDocument(
+      sourceReference.id as PublicSourceType,
+      source.data() ?? {}
+    ) : null;
+    if (flatDocument) documents.push(flatDocument);
+  }
+  return documents;
+}
+
+function flatSourceDocument(
+  sourceType: PublicSourceType,
+  data: Record<string, unknown>
+): NormalizedDocument | null {
+  const content = typeof data.content === "string" ? data.content : "";
+  const canonicalUrl = typeof data.canonicalUrl === "string" ?
+    data.canonicalUrl : "";
+  if (!content.trim() || !canonicalUrl) return null;
+  const itemKey = typeof data.itemKey === "string" ? data.itemKey : sourceType;
+  const sourceId = typeof data.sourceId === "string" ? data.sourceId :
+    sha256(`${sourceType}\u0000${canonicalUrl}`);
+  const documentId = typeof data.documentId === "string" ? data.documentId :
+    sha256(`${sourceId}\u0000${itemKey}`);
+  const contentHash = typeof data.contentHash === "string" ?
+    data.contentHash : sha256(content);
+  const sourceRevision = typeof data.sourceRevision === "string" ?
+    data.sourceRevision : null;
+  const title = typeof data.title === "string" ? data.title : null;
+  const sourceUrl = typeof data.sourceUrl === "string" ? data.sourceUrl :
+    canonicalUrl;
+  return {
+    documentId,
+    sourceType,
+    sourceId,
+    canonicalUrl,
+    title,
+    content,
+    contentHash,
+    sourceRevision,
+    extractorVersion: typeof data.extractorVersion === "string" ?
+      data.extractorVersion : "flat-source-v1",
+    metadata: sourceType === "github" ? {
+      itemKey,
+      sourceUrl,
+      repository: typeof data.repository === "string" ? data.repository :
+        new URL(canonicalUrl).pathname.replace(/^\//, ""),
+      path: typeof data.path === "string" ? data.path : itemKey,
+      blobId: typeof data.blobId === "string" ? data.blobId : sourceRevision,
+      ...(typeof data.symbol === "string" ? {symbol: data.symbol} : {}),
+      ...(typeof data.lineStart === "number" ?
+        {lineStart: data.lineStart} : {}),
+      ...(typeof data.lineEnd === "number" ? {lineEnd: data.lineEnd} : {}),
+    } : {
+      itemKey,
+      sourceUrl,
+      pageId: typeof data.pageId === "string" ? data.pageId : itemKey,
+      parentPageId: typeof data.parentPageId === "string" ?
+        data.parentPageId : null,
+      ...(typeof data.blockId === "string" ? {blockId: data.blockId} : {}),
+      ...(Array.isArray(data.headingPath) ? {
+        headingPath: data.headingPath.filter((value): value is string =>
+          typeof value === "string"),
+      } : {}),
+      ...(typeof data.structureFingerprint === "string" ? {
+        structureFingerprint: data.structureFingerprint,
+      } : {}),
+    },
+  };
 }
 
 async function reuseUnchangedVectors(

@@ -103,6 +103,7 @@ fun RAGentNavigator(
             val project = projects.firstOrNull { it.id == current.project.id } ?: current.project
             LaunchedEffect(project.id, project.githubUrl, project.docsUrl) {
                 projectViewModel.observeSourceSync(project.id)
+                projectViewModel.observeRagEmbedding(project.id)
                 projectViewModel.requestSourceSync(project.id)
             }
             ProjectHomeScreen(
@@ -111,6 +112,7 @@ fun RAGentNavigator(
                 isLoading = projectViewModel.isLoading,
                 errorMessage = projectViewModel.loadError,
                 sourceSyncStatus = projectViewModel.sourceSyncStatuses[project.id],
+                ragRevisionStatus = projectViewModel.ragRevisionStatuses[project.id],
                 onRefresh = projectViewModel::loadProjects,
                 onTabSelected = { selectedTab = it },
                 onBack = {

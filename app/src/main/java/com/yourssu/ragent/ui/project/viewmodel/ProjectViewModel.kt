@@ -10,6 +10,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectDocument
@@ -21,6 +22,7 @@ import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.PublicSourceUrl
 import com.yourssu.ragent.model.SourceUrlValidation
 import com.yourssu.ragent.model.SourceSyncStatusDocument
+import com.yourssu.ragent.model.RagRevisionStatusDocument
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.toProject
 import com.yourssu.ragent.model.toProjectMember
@@ -39,7 +41,10 @@ class ProjectViewModel : ViewModel() {
         private set
     var sourceSyncStatuses by mutableStateOf<Map<String, SourceSyncStatusDocument>>(emptyMap())
         private set
+    var ragRevisionStatuses by mutableStateOf<Map<String, RagRevisionStatusDocument>>(emptyMap())
+        private set
     private val sourceSyncListeners = mutableMapOf<String, ListenerRegistration>()
+    private val ragRevisionListeners = mutableMapOf<String, ListenerRegistration>()
 
     fun observeSourceSync(projectId: String) {
         if (sourceSyncListeners.containsKey(projectId)) return
@@ -57,9 +62,34 @@ class ProjectViewModel : ViewModel() {
         sourceSyncListeners[projectId] = registration
     }
 
+    fun observeRagEmbedding(projectId: String) {
+        if (ragRevisionListeners.containsKey(projectId)) return
+        val registration = Firebase.firestore.collection("projects").document(projectId)
+            .collection("ragRevisions")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w("RAG", "Failed to observe embedding status", error)
+                    return@addSnapshotListener
+                }
+                val document = snapshot?.documents?.firstOrNull()
+                if (document == null) {
+                    ragRevisionStatuses = ragRevisionStatuses - projectId
+                    return@addSnapshotListener
+                }
+                val status = document.toObject(RagRevisionStatusDocument::class.java)
+                    ?: return@addSnapshotListener
+                ragRevisionStatuses = ragRevisionStatuses + (projectId to status)
+            }
+        ragRevisionListeners[projectId] = registration
+    }
+
     override fun onCleared() {
         sourceSyncListeners.values.forEach { it.remove() }
         sourceSyncListeners.clear()
+        ragRevisionListeners.values.forEach { it.remove() }
+        ragRevisionListeners.clear()
         super.onCleared()
     }
 

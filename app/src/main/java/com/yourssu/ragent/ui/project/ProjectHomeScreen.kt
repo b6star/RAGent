@@ -65,6 +65,7 @@ import com.yourssu.ragent.model.ProjectTab
 import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.SourceSyncStatusDocument
+import com.yourssu.ragent.model.RagRevisionStatusDocument
 import com.yourssu.ragent.ui.agent.theme.AgentTheme
 import com.yourssu.ragent.ui.agent.theme.AgentThemeType
 import com.yourssu.ragent.ui.agent.theme.AgentChatTheme
@@ -80,6 +81,7 @@ fun ProjectHomeScreen(
     isLoading: Boolean,
     errorMessage: String?,
     sourceSyncStatus: SourceSyncStatusDocument?,
+    ragRevisionStatus: RagRevisionStatusDocument?,
     onRefresh: () -> Unit,
     onTabSelected: (ProjectTab) -> Unit,
     onBack: () -> Unit,
@@ -177,6 +179,7 @@ fun ProjectHomeScreen(
                         SourceSyncStatusBanner(
                             status = sourceSyncStatus
                                 ?: SourceSyncStatusDocument(status = "checking"),
+                            ragRevisionStatus = ragRevisionStatus,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .zIndex(2f)
@@ -338,9 +341,17 @@ fun ProjectHomeScreen(
 @Composable
 private fun SourceSyncStatusBanner(
     status: SourceSyncStatusDocument,
+    ragRevisionStatus: RagRevisionStatusDocument? = null,
     modifier: Modifier = Modifier
 ) {
-    val (label, color) = when (status.status.lowercase()) {
+    val embeddingStatus = when (ragRevisionStatus?.status?.lowercase()) {
+        "pending", "chunking" -> "Embedding 준비 중" to Color(0xFF7C3AED)
+        "embedding" -> "Embedding 생성 중" to Color(0xFF7C3AED)
+        "failed" -> "Embedding 오류" to Color(0xFFDC2626)
+        "ready" -> "Embedding 최신 상태" to Color(0xFF16A34A)
+        else -> null
+    }
+    val (label, color) = embeddingStatus ?: when (status.status.lowercase()) {
         "queued", "checking" -> "Source 확인 중" to Color(0xFF2563EB)
         "changed" -> "Source 변경 감지됨" to Color(0xFFD97706)
         "error" -> "Source 동기화 오류" to Color(0xFFDC2626)
