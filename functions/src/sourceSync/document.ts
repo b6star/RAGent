@@ -20,6 +20,12 @@ export type NormalizedDocument = {
     blobId?: string | null;
     pageId?: string;
     parentPageId?: string | null;
+    blockId?: string;
+    headingPath?: string[];
+    structureFingerprint?: string;
+    symbol?: string;
+    lineStart?: number;
+    lineEnd?: number;
   };
 };
 
@@ -83,6 +89,9 @@ function githubMetadata(snapshot: SourceSnapshot, item: SourceSnapshotItem) {
     repository,
     path,
     blobId,
+    symbol: item.anchor?.symbol,
+    lineStart: item.anchor?.lineStart,
+    lineEnd: item.anchor?.lineEnd,
   };
 }
 
@@ -97,6 +106,9 @@ function notionMetadata(item: SourceSnapshotItem) {
     itemKey: item.key,
     sourceUrl: item.url,
     pageId,
-    parentPageId: null,
+    parentPageId: item.anchor?.parentPageId ?? null,
+    blockId: item.anchor?.blockId,
+    headingPath: item.anchor?.headingPath,
+    structureFingerprint: item.anchor?.structureFingerprint,
   };
 }

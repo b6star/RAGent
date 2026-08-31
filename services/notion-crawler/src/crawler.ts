@@ -41,7 +41,7 @@ export async function crawlNotionSource(
   const canonicalRequest = {...request, url: canonicalUrl};
   const browser = await chromium.launch({
     headless: true,
-    args: ["--disable-dev-shm-usage", "--no-sandbox"],
+    args: ["--disable-dev-shm-usage", "--no-sandbox"]
   });
   try {
     const items = await crawlPages(browser, canonicalRequest);
@@ -61,21 +61,33 @@ async function crawlPages(
   const startedAt = Date.now();
   const visited = new Set<string>();
   const queued = new Set<string>();
-  const queue: QueuedPage[] = [{url: request.url, depth: 0}];
+  const queue: QueuedPage[] = [{ url: request.url, depth: 0 }];
   const items: NotionSnapshotItem[] = [];
   const depthCounts = new Map<number, number>();
   const depthLinks = new Map<number, string[]>();
+
   const timingTotals: CrawlTimings = {
-    navigationMs: 0, expansionMs: 0, scrollingMs: 0, linkDiscoveryMs: 0,
+    navigationMs: 0,
+    expansionMs: 0,
+    scrollingMs: 0,
+    linkDiscoveryMs: 0,
   };
+
   let totalBytes = 0;
   queued.add(notionPageKey(request.url));
 
-  while (queue.length && visited.size < request.policy.maximumPages) {
+  while (
+    queue.length &&
+    visited.size < request.policy.maximumPages
+  ) {
     assertRuntime(startedAt, request);
     const batch: QueuedPage[] = [];
-    while (queue.length && batch.length < PAGE_COLLECTION_CONCURRENCY &&
-        visited.size < request.policy.maximumPages) {
+
+    while (
+      queue.length &&
+      batch.length < PAGE_COLLECTION_CONCURRENCY &&
+      visited.size < request.policy.maximumPages
+    ) {
       const current = queue.shift();
       if (!current) break;
       const pageKey = notionPageKey(current.url);
@@ -83,54 +95,107 @@ async function crawlPages(
       visited.add(pageKey);
       batch.push(current);
     }
-    const collectedBatch = await Promise.all(batch.map(async (current) => {
-      const pageKey = notionPageKey(current.url);
-      return collectPageWithRetry(browser, current, pageKey, request);
-    }));
-    for (const {current, pageKey, collected} of collectedBatch) {
-    const byteSize = Buffer.byteLength(collected.text, "utf8");
-    if (byteSize > request.policy.maximumPageBytes) {
-      throw new Error("A Notion page exceeded the configured byte limit");
-    }
-    totalBytes += byteSize;
-    for (const key of Object.keys(timingTotals) as Array<keyof CrawlTimings>) {
-      timingTotals[key] += collected.timings[key];
-    }
-    if (totalBytes > request.policy.maximumTotalBytes) {
-      throw new Error("Notion content exceeded the configured total limit");
-    }
-    items.push({
-      key: pageKey,
-      url: collected.finalUrl,
-      title: collected.title,
-      content: collected.text,
-      contentHash: hashContent(collected.text),
-      byteSize,
-    });
-    depthCounts.set(
-      current.depth,
-      (depthCounts.get(current.depth) ?? 0) + 1
+
+    const collectedBatch = await Promise.all(
+      batch.map(async (current) => {
+        const pageKey = notionPageKey(current.url);
+        return collectPageWithRetry(
+          browser,
+          current,
+          pageKey,
+          request
+        );
+      })
     );
-    const linksAtDepth = depthLinks.get(current.depth) ?? [];
-    linksAtDepth.push(collected.finalUrl);
-    depthLinks.set(current.depth, linksAtDepth);
-    console.log("Notion page collected", {
-      projectId: request.projectId,
-      pageKey,
-      itemCount: items.length,
-      byteSize,
-    });
-    if (current.depth < request.policy.maximumCrawlDepth) {
-      for (const link of collected.links) {
-        const childKey = notionPageKey(link);
-        if (!visited.has(childKey) && !queued.has(childKey)) {
-          queued.add(childKey);
-          queue.push({url: link, depth: current.depth + 1});
+
+    for (const { current, pageKey, collected } of collectedBatch) {
+      const byteSize = Buffer.byteLength(collected.text, "utf8");
+      if (byteSize > request.policy.maximumPageBytes) {
+        throw new Error(
+          "A Notion page exceeded the configured byte limit"
+        );
+      }
+      totalBytes += byteSize;
+      for (
+        const key of Object.keys(timingTotals) as Array<
+          keyof CrawlTimings
+        >
+      ) {
+        timingTotals[key] += collected.timings[key];
+      }
+      if (totalBytes > request.policy.maximumTotalBytes) {
+        throw new Error(
+          "Notion content exceeded the configured total limit"
+        );
+      }
+      items.push({
+        key: pageKey,
+        url: collected.finalUrl,
+        title: collected.title,
+        content: collected.text,
+        contentHash: hashContent(collected.text),
+        byteSize,
+      });
+      depthCounts.set(
+        current.depth,
+        (depthCounts.get(current.depth) ?? 0) + 1
+      );
+      const linksAtDepth = depthLinks.get(current.depth) ?? [];
+      linksAtDepth.push(collected.finalUrl);
+      depthLinks.set(current.depth, linksAtDepth);
+
+      console.log("Notion page collected", {
+        projectId: request.projectId,
+        pageKey,
+        itemCount: items.length,
+        byteSize,
+      });
+      if (current.depth < request.policy.maximumCrawlDepth) {
+        for (const link of collected.links) {
+          const childKey = notionPageKey(link);
+          if (
+            !visited.has(childKey) &&
+            !queued.has(childKey)
+          ) {
+            queued.add(childKey);
+            queue.push({
+              url: link,
+              depth: current.depth + 1,
+            });
+          }
         }
       }
     }
   }
-  }
+
+  console.log("Notion crawl timing summary", {
+    ...timingTotals,
+
+    // Unlike the per-page totals above, this is the actual wall-clock time
+    // observed by the caller. Parallel page work overlaps within this value.
+    elapsedMs: Date.now() - startedAt,
+  });
+
+  console.log("Notion crawl depth summary", {
+    itemCount: items.length,
+    ...Object.fromEntries(
+      Array.from(
+        {
+          length: request.policy.maximumCrawlDepth + 1,
+        },
+        (_, depth) => [
+          `depth_${depth}`,
+          {
+            count: depthCounts.get(depth) ?? 0,
+            links: depthLinks.get(depth) ?? [],
+          },
+        ]
+      )
+    ),
+  });
+
+  return items;
+}
   console.log("Notion crawl timing summary", {
     ...timingTotals,
     // Unlike the per-page totals above, this is the actual wall-clock time
