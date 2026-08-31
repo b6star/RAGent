@@ -17,6 +17,15 @@ export type SourceSnapshotItem = {
   content: string;
   contentHash: string;
   byteSize: number;
+  anchor?: {
+    blockId?: string;
+    parentPageId?: string | null;
+    headingPath?: string[];
+    structureFingerprint?: string;
+    symbol?: string;
+    lineStart?: number;
+    lineEnd?: number;
+  };
 };
 
 export type SourceSnapshot = {

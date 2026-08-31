@@ -41,7 +41,7 @@ export async function crawlNotionSource(
   const canonicalRequest = {...request, url: canonicalUrl};
   const browser = await chromium.launch({
     headless: true,
-    args: ["--disable-dev-shm-usage", "--no-sandbox"],
+    args: ["--disable-dev-shm-usage", "--no-sandbox"]
   });
   try {
     const items = await crawlPages(browser, canonicalRequest);

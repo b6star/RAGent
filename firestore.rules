@@ -172,6 +172,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // RAG revision metadata is member-readable. Chunks and vectors are kept
+    // server-only so retrieval can enforce active-revision and project scope.
+    match /projects/{projectId}/rag/ragMetadata {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
+    match /projects/{projectId}/ragRevisions/{revisionId} {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
+    match /projects/{projectId}/ragRevisions/{revisionId}/{subcollection}/{documentId} {
+      allow read, write: if false;
+    }
+
     match /projects/{projectId}/sources/{sourceType} {
       allow read: if isOwner(projectId) || isMember(projectId);
       allow write: if false;

@@ -13,6 +13,10 @@ import {SOURCE_SYNC_CONFIG} from "./sourceSync/config";
 
 export {requestSourceSync} from "./sourceSync/coordinator";
 export {syncPublicSources} from "./sourceSync/worker";
+export {
+  createPendingRagRevision,
+  promoteReadyRagRevision,
+} from "./rag/revision";
 
 admin.initializeApp();
 const db = admin.firestore();
