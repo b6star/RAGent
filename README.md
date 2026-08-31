@@ -1,5 +1,26 @@
 # RAGent
 
+## Current status (2026-08-31)
+
+Phase 4 public GitHub/Notion source synchronization is implemented through
+Document normalization and safe source-revision promotion.
+
+- GitHub uses the public Git protocol; Notion uses a private Cloud Run
+  Playwright/Chromium crawler. Neither requires an API token.
+- Source manifests detect added, modified, and deleted Documents.
+- Changed Documents are written through staging and promoted to active only
+  after collection and normalization succeed.
+- Source and RAG revisions remain separate. Chunking and Embedding begin in
+  Phase 5.
+
+Phase 5 is provider-agnostic RAG infrastructure:
+
+- Step 0: RAG revision/embedding contract, anchors, model/version pinning,
+  Vector index validation, retry/resume, and cost telemetry.
+- Step 1: stable Notion/GitHub Chunking and deterministic chunk IDs.
+- Step 2: incremental Embedding and Vector revision management.
+- Step 3: Firestore Vector Search retrieval and source metadata.
+
 RAGent는 공개 GitHub Repository와 Notion 문서를 프로젝트 지식으로 연결하고, 사용자가 선택한 AI Provider를 통해 코드와 문서를 탐색하고 질문할 수 있도록 만드는 Android 협업 애플리케이션입니다.
 
 ## 현재 구현
@@ -39,11 +60,11 @@ RAGent는 공개 GitHub Repository와 Notion 문서를 프로젝트 지식으로
 - 기존 대화 또는 새 대화를 선택한 뒤 별도의 질문을 작성해 전송
 - 전송하지 않은 선택 Draft와 새 빈 대화 자동 정리
 
-Phase 1~3과 Phase 4 Step 1~3.3의 코드 구현이 완료되었습니다.
+Phase 1~3과 Phase 4 Step 1~4의 코드 구현이 완료되었습니다.
 
 ## 현재 Phase
 
-**Phase 4 Step 3: Public Link Source Sync**의 코드 구현을 완료했습니다. 프로젝트 진입 요청은 인증·멤버 확인·throttle·transaction lease를 거쳐 Cloud Tasks 작업 하나로 바뀝니다. GitHub는 공개 Git 프로토콜로, Notion은 private Cloud Run의 Playwright·Chromium으로 수집하며 항목별 SHA-256과 전체 manifest를 Firebase Storage snapshot 및 Firestore revision 상태로 저장합니다. 실제 Cloud Run·Functions 배포와 IAM 설정은 아직 남아 있으며, 다음 구현은 Step 4 공통 Document·Metadata 정규화입니다.
+**Phase 4 Step 4: Document·Metadata 정규화**까지 구현했습니다. 프로젝트 진입 요청은 인증·멤버 확인·throttle·transaction lease를 거쳐 Cloud Tasks 작업 하나로 바뀝니다. GitHub는 공개 Git 프로토콜로, Notion은 private Cloud Run의 Playwright·Chromium으로 수집하며 항목별 SHA-256과 전체 manifest를 Firebase Storage snapshot 및 Firestore revision 상태로 저장합니다. 변경 Document는 staging에 기록한 뒤 정규화 성공 후 active revision으로 승격하고, 실패 시 기존 active 데이터를 유지합니다.
 
 ```mermaid
 flowchart LR

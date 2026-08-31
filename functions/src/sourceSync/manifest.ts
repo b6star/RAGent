@@ -53,6 +53,8 @@ export function compareSnapshots(
   previous: SourceSnapshot | null,
   current: SourceSnapshot
 ): ManifestChangeSet {
+  const extractorChanged = previous !== null &&
+    previous.extractorVersion !== current.extractorVersion;
   const before = new Map(
     (previous?.items ?? []).map((item) => [item.key, item.contentHash])
   );
@@ -64,7 +66,7 @@ export function compareSnapshots(
   const deleted: string[] = [];
   for (const [key, hash] of after) {
     if (!before.has(key)) added.push(key);
-    else if (before.get(key) !== hash) modified.push(key);
+    else if (extractorChanged || before.get(key) !== hash) modified.push(key);
   }
   for (const key of before.keys()) {
     if (!after.has(key)) deleted.push(key);

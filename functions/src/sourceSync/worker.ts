@@ -254,8 +254,9 @@ async function completeJob(
     }
   }
   const staged = await db.runTransaction(async (transaction) => {
-    const [control, github, notion] = await transaction.getAll(
+    const [control, status, github, notion] = await transaction.getAll(
       references.control,
+      references.status,
       references.github,
       references.notion
     );
@@ -266,7 +267,8 @@ async function completeJob(
       const reference = result.sourceType === "github" ?
         references.github : references.notion;
       const current = result.sourceType === "github" ? github : notion;
-      const changed = current.get("manifestHash") !== result.manifestHash;
+      const changed = current.get("manifestHash") !== result.manifestHash ||
+        current.get("extractorVersion") !== result.extractorVersion;
       if (changed) changedTypes.push(result.sourceType);
       const documentChanges = changes.get(result.sourceType);
       transaction.set(reference, {
@@ -292,7 +294,8 @@ async function completeJob(
     const aggregateRevisionId = aggregateRevision(results);
     transaction.set(references.status, {
       status: changedTypes.length ? "changed" : "ready",
-      activeRevisionId: aggregateRevisionId,
+      activeRevisionId: changedTypes.length ?
+        status.get("activeRevisionId") ?? null : aggregateRevisionId,
       lastCheckedAt: now,
       lastCompletedAt: changedTypes.length ? null : now,
       lastError: null,
@@ -315,6 +318,9 @@ async function completeJob(
   await persistNormalizedDocuments(
     job.projectId, snapshots, changes, "staging"
   );
+  // Write all normalized documents before flipping the active revision.
+  // This keeps the previous active revision visible if promotion fails.
+  await promoteNormalizedDocuments(job.projectId, snapshots, changes);
   await db.runTransaction(async (transaction) => {
     const control = await transaction.get(references.control);
     if (control.get("activeJobId") !== job.jobId) return;
@@ -357,7 +363,6 @@ async function completeJob(
       updatedAt: now,
     }, {merge: true});
   });
-  await promoteNormalizedDocuments(job.projectId, snapshots, changes);
 }
 
 /**

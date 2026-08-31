@@ -74,3 +74,18 @@ test(
     });
   }
 );
+
+test("extractor version changes re-normalize existing documents", () => {
+  const previous = createSourceSnapshot(
+    "notion", "https://example.com", null, [
+      {key: "a", url: null, title: "a", content: "same",
+        contentHash: sha256("same"), byteSize: 4},
+      {key: "b", url: null, title: "b", content: "same",
+        contentHash: sha256("same"), byteSize: 4},
+    ]
+  );
+  const current = {...previous, extractorVersion: "public-link-v2"};
+  assert.deepEqual(compareSnapshots(previous, current), {
+    added: [], modified: ["a", "b"], deleted: [],
+  });
+});
