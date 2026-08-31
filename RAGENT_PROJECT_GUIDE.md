@@ -56,7 +56,7 @@ RAGent는 여러 소프트웨어 프로젝트의 GitHub Repository와 Notion 문
 - 마크다운 렌더링 지원 및 AI 응답 메타데이터 표시
 - 사용자별 AI 사용량(토큰) 서버 기반 실시간 집계 기초 로직
 
-### Phase 4 - 공개 GitHub·Notion Source 연결 (Step 1~3.3 구현 완료, 2026-08-30 KST)
+### Phase 4 - 공개 GitHub·Notion Source 연결 (Step 1~4 구현 완료, 2026-08-31 KST)
 
 #### Step 1: Public Source Link Management와 WebView (완료)
 
@@ -235,8 +235,9 @@ fun AgentChatScreen(/* existing parameters */) {
 - Step 3.1 완료: Source Sync 공통 설정과 Firestore 상태·제어 모델
 - Step 3.2 완료: 인증·멤버 검증·throttle·transaction lease·Cloud Tasks coordinator
 - Step 3.3 구현 완료: 공개 Git 수집기와 private Cloud Run Playwright Notion 수집기, SHA-256 manifest·Storage snapshot·revision 승격
-- Step 3 배포 대기: Cloud Run·Functions 배포, IAM과 `NOTION_CRAWLER_URL` 설정
-- Step 4 예정: 공통 Document·Metadata 모델로 후속 RAG 입력 준비
+- Step 3 배포 및 운영 검증 완료: Cloud Run·Functions 배포, IAM과 `NOTION_CRAWLER_URL` 설정
+- Step 4 완료: 공통 Document·Metadata 모델, 변경 Document 집합, staging·active revision 전환
+- 다음 단계: Phase 5 RAG Revision 계약, 구조 기반 Chunking, 증분 Embedding과 Vector Retrieval
 
 ### Phase 5 - Provider-agnostic RAG 기반
 - 변경된 Source만 Chunking 및 Embedding
@@ -249,18 +250,18 @@ fun AgentChatScreen(/* existing parameters */) {
 
 ## 10. 현재 작업 위치
 
-- 완료: Phase 1, Phase 2, Phase 3, Phase 4 Step 1~3.3 코드 구현
+- 완료: Phase 1, Phase 2, Phase 3, Phase 4 Step 1~4 코드 구현
 - Phase 3 종료일: **2026-08-29 06:13 KST**
 - Phase 4 Step 2 종료일: **2026-08-30 KST**
-- 현재 작업: **Phase 4 Step 3 배포 준비 / Public Link Source Sync**
+- 현재 작업: **Phase 5 시작 준비 / RAG Revision & Embedding Contract**
 - 완료: **Step 3.1 Source Sync Foundation** — 공통 설정 원본, Firestore 상태·control·Source 모델과 상태 전이 테스트
 - 완료: **Step 3.2 Source Sync Coordinator** — 인증, 멤버 검증, throttle, transaction lease와 Cloud Tasks 요청
 - 구현 완료: **Step 3.3 Source Collectors** — 공개 Git과 private Cloud Run Playwright·Chromium 수집, manifest·snapshot·revision 처리
-- 다음 작업: Cloud Run·Functions 배포와 IAM 설정 후 **Step 4 공통 Document·Metadata 정규화**
+- 다음 작업: **Phase 5 Step 0 RAG Revision & Embedding Contract**
 
 ### 새 대화 시작용 다음 작업 요약
 
-Step 3.1~3.3 코드는 구현되어 있다. 프로젝트 진입 시 `requestSourceSync`가
+Step 3.1~4 코드는 구현되어 있다. 프로젝트 진입 시 `requestSourceSync`가
 인증·멤버·throttle·lease를 확인하고 Cloud Tasks worker를 Queue한다. worker는
 GitHub 공개 Git을 직접 수집하고, Notion은 private Cloud Run Playwright 서비스에
 위임한다. 항목별 hash와 manifest, 압축 snapshot 및 revision 상태까지 저장한다.
@@ -270,7 +271,7 @@ GitHub 공개 Git을 직접 수집하고, Notion은 private Cloud Run Playwright
 3. crawler 서비스 계정에 snapshot bucket Object Creator를 부여한다.
 4. Functions parameter `NOTION_CRAWLER_URL`을 설정하고 Functions를 배포한다.
 5. 실제 공개 GitHub·Notion 프로젝트에서 첫 수집과 변경 없음·변경 있음 흐름을 확인한다.
-6. 다음 코드 작업은 Step 4 공통 Document·Metadata 정규화다.
+6. 다음 코드 작업은 Phase 5 Step 0 RAG Revision & Embedding Contract다.
 
 다음 작업에서 반드시 보존할 사항:
 
@@ -281,3 +282,23 @@ GitHub 공개 Git을 직접 수집하고, Notion은 private Cloud Run Playwright
 - 전송하지 않은 Selection Draft 및 새 빈 세션 정리
 - 첨부당 10MB, 요청 합계 20MB 제한과 Base64 유효성 검사
 - 기존 AgentScreen IME anchor 동반 이동 로직
+
+## Latest implementation status (2026-08-31)
+
+Phase 4 public-link Source synchronization is complete through normalized
+Document persistence and safe revision handling. GitHub is collected through
+the public Git protocol and Notion through the private Cloud Run Chromium
+crawler; neither integration requires an API token.
+
+The worker compares source manifests, persists changed Documents under staging,
+and promotes the active source revision only after normalized data is written.
+If collection or normalization fails, the previous active revision remains
+available. An extractor-version change forces existing Documents back through
+normalization even when their content hash is unchanged.
+
+Phase 5 is the next workstream. Step 0 defines the RAG revision/embedding
+contract: preserve Notion anchors, separate Source and RAG active revisions,
+activate a RAG revision only after Chunk/Embedding succeeds, pin embedding
+model metadata, validate Vector index/security rules, support retry/resume,
+and record token/cost telemetry. Steps 1-3 cover stable Chunking, incremental
+Embedding, and Vector Retrieval.
