@@ -32,8 +32,8 @@ gcloud run deploy ragent-notion-crawler `
   --project ragent-d6b01 `
   --region asia-northeast3 `
   --no-allow-unauthenticated `
-  --memory 2Gi `
-  --cpu 2 `
+  --memory 4Gi `
+  --cpu 4 `
   --timeout 1200 `
   --max-instances 2
 ```

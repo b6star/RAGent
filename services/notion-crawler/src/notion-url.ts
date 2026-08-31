@@ -23,6 +23,7 @@ export function normalizeNotionUrl(rawUrl: string): string | null {
       "utm_source",
       "utm_medium",
       "utm_campaign",
+      "session_sync_attempted",
     ]) {
       url.searchParams.delete(parameter);
     }
