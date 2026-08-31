@@ -165,6 +165,23 @@ service cloud.firestore {
         || isAdmin(projectId);
     }
 
+    // Member-readable source synchronization status and manifest metadata.
+    // Server-only control and job documents remain denied by default.
+    match /projects/{projectId}/sourceSync/status {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
+    match /projects/{projectId}/sources/{sourceType} {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
+    match /projects/{projectId}/sources/{sourceType}/documents/{documentId} {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
     match /users/{userId}/ai_chats/{projectId}/sessions/{sessionId} {
       allow read, write: if isUser(userId);
     }

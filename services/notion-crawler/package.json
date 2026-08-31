@@ -1,0 +1,22 @@
+{
+  "name": "ragent-notion-crawler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "npm run build && node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "8.0.1",
+    "playwright": "1.62.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.0",
+    "typescript": "7.0.2"
+  }
+}

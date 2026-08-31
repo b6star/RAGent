@@ -19,7 +19,6 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.StreamResponse
-import com.google.firebase.functions.functions
 import com.google.firebase.storage.storage
 import com.google.firebase.storage.StorageException
 import com.yourssu.ragent.data.local.AiApiKeyStorage
@@ -28,6 +27,7 @@ import com.yourssu.ragent.data.remote.AiErrorReason
 import com.yourssu.ragent.data.remote.AiRequestException
 import com.yourssu.ragent.data.remote.DirectAiClient
 import com.yourssu.ragent.data.remote.DirectAiAttachment
+import com.yourssu.ragent.data.remote.RAGentFunctions
 import com.yourssu.ragent.model.AiUsageDashboard
 import com.yourssu.ragent.model.AiUsageRecord
 import com.yourssu.ragent.model.toAiUsageDashboard
@@ -92,7 +92,7 @@ data class AiChatMessage(
 class AgentViewModel(application: Application) : AndroidViewModel(application) {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
-    private val functions = Firebase.functions("asia-northeast3")
+    private val functions = RAGentFunctions.instance
     private val directAiClient = DirectAiClient()
     val aiApiKeyStorage = AiApiKeyStorage(application)
 

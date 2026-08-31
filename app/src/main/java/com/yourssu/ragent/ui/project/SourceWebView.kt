@@ -68,7 +68,7 @@ data class SourceSelectionResult(
     val capturedImage: AiAttachment? = null
 )
 
-@SuppressLint("SetJavaScriptEnabled")
+@SuppressLint("SetJavaScriptEnabled", "ContextCastToActivity")
 @Composable
 fun SourceWebView(
     url: String,

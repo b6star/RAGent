@@ -1,0 +1,28 @@
+{
+  "projectId": "local-test",
+  "url": "https://app.notion.com/p/TF-RAG-Test-3c0974b809de8009a3acc4ed55be76cb?source=copy_link",
+  "bucketName": "ragent-d6b01.firebasestorage.app",
+  "storagePrefix": "source-snapshots/local-test",
+  "policy": {
+    "schemaVersion": 1,
+    "manifestVersion": 1,
+    "extractorVersion": "notion-playwright-v1",
+    "hashAlgorithm": "sha256",
+    "maximumPages": 100,
+    "maximumCrawlDepth": 5,
+    "maximumPageBytes": 2097152,
+    "maximumTotalBytes": 52428800,
+    "maximumRuntimeMilliseconds": 1200000,
+    "navigationTimeoutMilliseconds": 60000,
+    "renderWaitMilliseconds": 1500,
+    "expansionRounds": 2,
+    "maximumExpandableElements": 20,
+    "expansionClickTimeoutMilliseconds": 200,
+    "expansionWaitMilliseconds": 100,
+    "maximumScrollSteps": 20,
+    "scrollWaitMilliseconds": 100,
+    "stableScrollIterations": 3,
+    "viewportWidth": 1440,
+    "viewportHeight": 1000
+  }
+}

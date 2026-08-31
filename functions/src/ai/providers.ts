@@ -58,6 +58,7 @@ export function isAiProvider(value: unknown): value is AiProvider {
  * @param {AiTextChunkHandler} onChunk Incremental text handler
  * @param {string} model Preferred model ID
  * @param {AbortSignal} signal Client disconnect signal
+ * @param {AiInlineAttachment[]} attachments Inline request attachments
  * @return {Promise<AiGenerationResult>} Normalized final response
  */
 export async function streamAiResponse(
@@ -74,9 +75,13 @@ export async function streamAiResponse(
   }
   switch (provider) {
   case "gemini":
-    return streamGeminiResponse(prompt, apiKey, onChunk, model, signal, attachments);
+    return streamGeminiResponse(
+      prompt, apiKey, onChunk, model, signal, attachments
+    );
   case "openai":
-    return streamOpenAiResponse(prompt, apiKey, onChunk, model, signal, attachments);
+    return streamOpenAiResponse(
+      prompt, apiKey, onChunk, model, signal, attachments
+    );
   }
 }
 
@@ -87,6 +92,7 @@ export async function streamAiResponse(
  * @param {AiTextChunkHandler} onChunk Incremental text handler
  * @param {string} model Preferred model ID
  * @param {AbortSignal} signal Client disconnect signal
+ * @param {AiInlineAttachment[]} attachments Inline request attachments
  * @return {Promise<AiGenerationResult>} Normalized final response
  */
 async function streamGeminiResponse(
@@ -160,6 +166,7 @@ async function streamGeminiResponse(
  * @param {AiTextChunkHandler} onChunk Incremental text handler
  * @param {string} model Preferred model ID
  * @param {AbortSignal} signal Client disconnect signal
+ * @param {AiInlineAttachment[]} attachments Inline request attachments
  * @return {Promise<AiGenerationResult>} Normalized final response
  */
 async function streamOpenAiResponse(
@@ -173,14 +180,18 @@ async function streamOpenAiResponse(
   const client = new OpenAI({apiKey});
   const content = [
     {type: "input_text" as const, text: prompt},
-    ...attachments.map((attachment) => attachment.mimeType.startsWith("image/") ? {
-      type: "input_image" as const,
-      image_url: `data:${attachment.mimeType};base64,${attachment.dataBase64}`,
-      detail: "auto" as const,
-    } : {
-      type: "input_file" as const,
-      filename: "attachment",
-      file_data: `data:${attachment.mimeType};base64,${attachment.dataBase64}`,
+    ...attachments.map((attachment) => {
+      const dataUrl =
+        `data:${attachment.mimeType};base64,${attachment.dataBase64}`;
+      return attachment.mimeType.startsWith("image/") ? {
+        type: "input_image" as const,
+        image_url: dataUrl,
+        detail: "auto" as const,
+      } : {
+        type: "input_file" as const,
+        filename: "attachment",
+        file_data: dataUrl,
+      };
     }),
   ];
   const stream = await client.responses.create({

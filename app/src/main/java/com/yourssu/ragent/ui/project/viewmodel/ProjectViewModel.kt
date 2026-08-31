@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
 import com.yourssu.ragent.model.Project
 import com.yourssu.ragent.model.ProjectDocument
@@ -19,20 +20,48 @@ import com.yourssu.ragent.model.ProjectMemberDocument
 import com.yourssu.ragent.model.ProjectVisibility
 import com.yourssu.ragent.model.PublicSourceUrl
 import com.yourssu.ragent.model.SourceUrlValidation
+import com.yourssu.ragent.model.SourceSyncStatusDocument
 import com.yourssu.ragent.model.Role
 import com.yourssu.ragent.model.toProject
 import com.yourssu.ragent.model.toProjectMember
+import com.yourssu.ragent.data.remote.RAGentFunctions
 import java.util.UUID
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class ProjectViewModel : ViewModel() {
+    private val functions = RAGentFunctions.instance
     var projects by mutableStateOf<List<Project>>(emptyList())
         private set
     var isLoading by mutableStateOf(false)
         private set
     var loadError by mutableStateOf<String?>(null)
         private set
+    var sourceSyncStatuses by mutableStateOf<Map<String, SourceSyncStatusDocument>>(emptyMap())
+        private set
+    private val sourceSyncListeners = mutableMapOf<String, ListenerRegistration>()
+
+    fun observeSourceSync(projectId: String) {
+        if (sourceSyncListeners.containsKey(projectId)) return
+        val registration = Firebase.firestore.collection("projects").document(projectId)
+            .collection("sourceSync").document("status")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w("SourceSync", "Failed to observe source status", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                val status = snapshot.toObject(SourceSyncStatusDocument::class.java) ?: return@addSnapshotListener
+                sourceSyncStatuses = sourceSyncStatuses + (projectId to status)
+            }
+        sourceSyncListeners[projectId] = registration
+    }
+
+    override fun onCleared() {
+        sourceSyncListeners.values.forEach { it.remove() }
+        sourceSyncListeners.clear()
+        super.onCleared()
+    }
 
     fun loadProjects() {
         val uid = Firebase.auth.currentUser?.uid ?: run {
@@ -49,6 +78,28 @@ class ProjectViewModel : ViewModel() {
                 loadError = "프로젝트를 불러오지 못했습니다."
             } finally {
                 isLoading = false
+            }
+        }
+    }
+
+    /** Requests a throttled background refresh when a project is opened. */
+    fun requestSourceSync(projectId: String) {
+        if (projects.none { it.id == projectId }) {
+            Log.d("SourceSync", "requestSourceSync skipped: project not loaded id=$projectId")
+            return
+        }
+        viewModelScope.launch {
+            Log.d("SourceSync", "requestSourceSync started id=$projectId")
+            try {
+                val result = functions.getHttpsCallable("requestSourceSync")
+                    .call(mapOf("projectId" to projectId))
+                    .await()
+                Log.d(
+                    "SourceSync",
+                    "requestSourceSync succeeded id=$projectId data=${result.data}"
+                )
+            } catch (e: Exception) {
+                Log.w("SourceSync", "Background Source sync request failed", e)
             }
         }
     }

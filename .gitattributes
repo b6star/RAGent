@@ -1,0 +1,3 @@
+functions/.eslintrc.js text eol=lf
+functions/src/**/*.ts text eol=lf
+services/notion-crawler/** text eol=lf
