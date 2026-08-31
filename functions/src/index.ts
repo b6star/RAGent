@@ -17,6 +17,7 @@ export {
   createPendingRagRevision,
   promoteReadyRagRevision,
 } from "./rag/revision";
+export {runRagEmbedding} from "./rag/embedding";
 
 admin.initializeApp();
 const db = admin.firestore();
