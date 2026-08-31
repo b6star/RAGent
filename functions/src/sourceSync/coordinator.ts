@@ -11,6 +11,7 @@ import {HttpsError, onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 
 import {SOURCE_SYNC_CONFIG} from "./config";
+import {purgeLegacyEmbeddingQueueOnce} from "../rag/queueMigration";
 import {sourceSyncReferences} from "./firestore";
 import {
   createInitialProjectSource,
@@ -253,6 +254,7 @@ export const requestSourceSync = onCall({
 
   if (result.disposition === "queued" && result.jobId) {
     try {
+      await purgeLegacyEmbeddingQueueOnce(projectId);
       const workerName = [
         "locations",
         SOURCE_SYNC_CONFIG.region,

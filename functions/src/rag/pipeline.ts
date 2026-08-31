@@ -12,8 +12,14 @@ import {NormalizedDocument} from "../sourceSync/document";
 import {sourceSyncReferences} from "../sourceSync/firestore";
 import {sha256} from "../sourceSync/manifest";
 import {PublicSourceType} from "../sourceSync/model";
+import {SOURCE_SYNC_CONFIG} from "../sourceSync/config";
 
-const EMBEDDING_TASK_NAME = "embedRagRevisionTask";
+const EMBEDDING_TASK_NAME = [
+  "locations",
+  SOURCE_SYNC_CONFIG.region,
+  "functions",
+  "embedRagRevisionTask",
+].join("/");
 
 /** Builds and queues a RAG revision from active normalized source documents. */
 export async function stageRagRevision(

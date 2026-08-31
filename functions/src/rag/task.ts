@@ -5,6 +5,7 @@ import * as logger from "firebase-functions/logger";
 import {onTaskDispatched} from "firebase-functions/v2/tasks";
 
 import {RAG_CONFIG} from "./config";
+import {SOURCE_SYNC_CONFIG} from "../sourceSync/config";
 import {ragReferences} from "./firestore";
 import {
   createGeminiEmbeddingClient,
@@ -17,6 +18,8 @@ import {promoteReadyRagRevision} from "./revision";
 
 /** Runs the server-side embedding queue created after source synchronization. */
 export const embedRagRevisionTask = onTaskDispatched({
+  region: SOURCE_SYNC_CONFIG.region,
+  memory: "1GiB",
   secrets: [embeddingApiKey],
   retryConfig: {maxAttempts: 3, maxBackoffSeconds: 300},
 }, async (request) => {
@@ -47,6 +50,7 @@ export const embedRagRevisionTask = onTaskDispatched({
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
+      completedChunkCount: 0,
       completedBatchCount: 0,
       completedAt,
       updatedAt: completedAt,
@@ -64,6 +68,7 @@ export const embedRagRevisionTask = onTaskDispatched({
   await revisionReference.set({
     status: "embedding",
     chunkCount: chunks.length,
+    completedChunkCount: 0,
     totalBatchCount: Math.ceil(
       chunks.length / RAG_CONFIG.embedding.maximumBatchSize
     ),
@@ -79,12 +84,19 @@ export const embedRagRevisionTask = onTaskDispatched({
   try {
     const embedded = await embedChunks(
       chunks,
-      createGeminiEmbeddingClient(apiKey)
+      createGeminiEmbeddingClient(apiKey),
+      async (completedChunkCount) => {
+        await revisionReference.set({
+          completedChunkCount,
+          updatedAt: Timestamp.now(),
+        }, {merge: true});
+      }
     );
     await persistEmbeddedChunks(projectId, revisionId, embedded);
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
+      completedChunkCount: chunks.length,
       completedBatchCount: Math.ceil(
         chunks.length / RAG_CONFIG.embedding.maximumBatchSize
       ),

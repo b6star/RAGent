@@ -345,10 +345,10 @@ private fun SourceSyncStatusBanner(
     modifier: Modifier = Modifier
 ) {
     val embeddingStatus = when (ragRevisionStatus?.status?.lowercase()) {
-        "pending", "chunking" -> "Embedding 준비 중" to Color(0xFF7C3AED)
-        "embedding" -> "Embedding 생성 중" to Color(0xFF7C3AED)
-        "failed" -> "Embedding 오류" to Color(0xFFDC2626)
-        "ready" -> "Embedding 최신 상태" to Color(0xFF16A34A)
+        "pending", "chunking" -> "Embedding 준비 중 ${embeddingProgress(ragRevisionStatus)}" to Color(0xFF7C3AED)
+        "embedding" -> "Embedding 생성 중 ${embeddingProgress(ragRevisionStatus)}" to Color(0xFF7C3AED)
+        "failed" -> "Embedding 오류 ${embeddingProgress(ragRevisionStatus)}" to Color(0xFFDC2626)
+        "ready" -> "Embedding 최신 상태 ${embeddingProgress(ragRevisionStatus)}" to Color(0xFF16A34A)
         else -> null
     }
     val (label, color) = embeddingStatus ?: when (status.status.lowercase()) {
@@ -371,6 +371,17 @@ private fun SourceSyncStatusBanner(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
         )
     }
+}
+
+private fun embeddingProgress(status: RagRevisionStatusDocument): String {
+    val total = status.chunkCount
+    if (total <= 0) return ""
+    val completed = if (status.status.equals("ready", ignoreCase = true)) {
+        total
+    } else {
+        status.completedChunkCount.coerceIn(0, total)
+    }
+    return "${completed}/${total}"
 }
 
 @Composable

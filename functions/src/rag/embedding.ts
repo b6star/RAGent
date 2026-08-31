@@ -53,7 +53,8 @@ export function createGeminiEmbeddingClient(apiKey: string): EmbeddingClient {
 /** Embeds chunks in bounded batches while preserving deterministic order. */
 export async function embedChunks(
   chunks: readonly RagChunk[],
-  client: EmbeddingClient
+  client: EmbeddingClient,
+  onBatchCompleted?: (completedChunkCount: number) => void | Promise<void>
 ): Promise<EmbeddedChunk[]> {
   const result: EmbeddedChunk[] = [];
   for (let index = 0; index < chunks.length;
@@ -68,6 +69,7 @@ export async function embedChunks(
       chunk,
       embedding: embeddings[batchIndex],
     })));
+    await onBatchCompleted?.(result.length);
   }
   return result;
 }
@@ -164,6 +166,7 @@ export const runRagEmbedding = onCall({
   await references.revision(revisionId).set({
     status: "embedding",
     chunkCount: chunks.length,
+    completedChunkCount: 0,
     totalBatchCount: Math.ceil(
       chunks.length / RAG_CONFIG.embedding.maximumBatchSize
     ),
@@ -177,12 +180,19 @@ export const runRagEmbedding = onCall({
   }
   const embedded = await embedChunks(
     chunks,
-    createGeminiEmbeddingClient(apiKey)
+    createGeminiEmbeddingClient(apiKey),
+    async (completedChunkCount) => {
+      await references.revision(revisionId).set({
+        completedChunkCount,
+        updatedAt: Timestamp.now(),
+      }, {merge: true});
+    }
   );
   await persistEmbeddedChunks(projectId, revisionId, embedded);
   const completedAt = Timestamp.now();
   await references.revision(revisionId).set({
     status: "ready",
+    completedChunkCount: chunks.length,
     completedBatchCount: Math.ceil(
       chunks.length / RAG_CONFIG.embedding.maximumBatchSize
     ),

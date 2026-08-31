@@ -32,6 +32,7 @@ export type RagRevisionDocument = {
   chunkerVersion: string;
   documentCount: number;
   chunkCount: number;
+  completedChunkCount: number;
   completedBatchCount: number;
   totalBatchCount: number;
   activeAt: RagFirestoreTime | null;
@@ -120,6 +121,7 @@ export function createRagRevision(
     chunkerVersion: RAG_CONFIG.chunkerVersion,
     documentCount: 0,
     chunkCount: 0,
+    completedChunkCount: 0,
     completedBatchCount: 0,
     totalBatchCount: 0,
     activeAt: null,

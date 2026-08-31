@@ -19,6 +19,7 @@ export {
 } from "./rag/revision";
 export {runRagEmbedding} from "./rag/embedding";
 export {embedRagRevisionTask} from "./rag/task";
+export {purgeLegacyEmbeddingQueue} from "./rag/queueMigration";
 
 admin.initializeApp();
 const db = admin.firestore();
