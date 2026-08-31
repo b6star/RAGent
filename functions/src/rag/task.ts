@@ -42,16 +42,24 @@ export const embedRagRevisionTask = onTaskDispatched({
   }
 
   const chunksSnapshot = await references.chunks(revisionId).get();
-  const chunks = chunksSnapshot.docs
+  const allChunkDocs = chunksSnapshot.docs;
+  const chunks = allChunkDocs
     .filter((snapshot) => snapshot.get("embeddingStatus") !== "reused" &&
       snapshot.get("embeddingStatus") !== "embedded")
     .map((snapshot) => snapshot.data() as RagChunk);
+  const totalChunkCount = allChunkDocs.length;
+  const completedChunkCount = totalChunkCount - chunks.length;
+  const totalBatchCount = Math.ceil(
+    totalChunkCount / RAG_CONFIG.embedding.maximumBatchSize
+  );
   if (!chunks.length) {
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
-      completedChunkCount: 0,
-      completedBatchCount: 0,
+      chunkCount: totalChunkCount,
+      completedChunkCount: totalChunkCount,
+      completedBatchCount: totalBatchCount,
+      totalBatchCount,
       completedAt,
       updatedAt: completedAt,
     }, {merge: true});
@@ -67,17 +75,16 @@ export const embedRagRevisionTask = onTaskDispatched({
   const now = Timestamp.now();
   await revisionReference.set({
     status: "embedding",
-    chunkCount: chunks.length,
-    completedChunkCount: 0,
-    totalBatchCount: Math.ceil(
-      chunks.length / RAG_CONFIG.embedding.maximumBatchSize
-    ),
+    chunkCount: totalChunkCount,
+    completedChunkCount,
+    totalBatchCount,
     startedAt: now,
     updatedAt: now,
   }, {merge: true});
   await references.embeddingJobs(revisionId).doc("default").set({
     status: "running",
     attempt: request.retryCount + 1,
+    cursor: lastCompletedChunkId(allChunkDocs),
     updatedAt: now,
   }, {merge: true});
 
@@ -87,7 +94,8 @@ export const embedRagRevisionTask = onTaskDispatched({
       createGeminiEmbeddingClient(apiKey),
       async (completedChunkCount) => {
         await revisionReference.set({
-          completedChunkCount,
+          completedChunkCount: completedChunkCount +
+            (totalChunkCount - chunks.length),
           updatedAt: Timestamp.now(),
         }, {merge: true});
       }
@@ -96,10 +104,10 @@ export const embedRagRevisionTask = onTaskDispatched({
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
-      completedChunkCount: chunks.length,
-      completedBatchCount: Math.ceil(
-        chunks.length / RAG_CONFIG.embedding.maximumBatchSize
-      ),
+      chunkCount: totalChunkCount,
+      completedChunkCount: totalChunkCount,
+      completedBatchCount: totalBatchCount,
+      totalBatchCount,
       completedAt,
       updatedAt: completedAt,
     }, {merge: true});
@@ -118,3 +126,13 @@ export const embedRagRevisionTask = onTaskDispatched({
     throw error;
   }
 });
+
+function lastCompletedChunkId(
+  snapshots: readonly FirebaseFirestore.QueryDocumentSnapshot[]
+): string | null {
+  for (let index = snapshots.length - 1; index >= 0; index -= 1) {
+    const status = snapshots[index].get("embeddingStatus");
+    if (status === "reused" || status === "embedded") return snapshots[index].id;
+  }
+  return null;
+}
