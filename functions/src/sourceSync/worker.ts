@@ -1,4 +1,9 @@
-import {getFirestore, Timestamp} from "firebase-admin/firestore";
+import {
+  DocumentData,
+  DocumentReference,
+  getFirestore,
+  Timestamp,
+} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
 import {gunzip} from "node:zlib";
 import {promisify} from "node:util";
@@ -10,6 +15,7 @@ import {SOURCE_SYNC_CONFIG} from "./config";
 import {normalizeSourceSyncError} from "./errors";
 import {sourceSyncReferences} from "./firestore";
 import {collectGithubSource} from "./github";
+import {normalizeSnapshot, NormalizedDocument} from "./document";
 import {
   compareSnapshots,
   sha256,
@@ -232,6 +238,7 @@ async function completeJob(
     PublicSourceType,
     ReturnType<typeof compareSnapshots>
   >();
+  const snapshots = new Map<PublicSourceType, SourceSnapshot>();
   for (const result of results) {
     const current = currentSources.find((entry) =>
       entry.source.sourceType === result.sourceType)?.snapshot;
@@ -241,7 +248,10 @@ async function completeJob(
     const next = await downloadSnapshot(
       getStorage().bucket(), result.snapshotObjectPath
     );
-    if (next) changes.set(result.sourceType, compareSnapshots(previous, next));
+    if (next) {
+      changes.set(result.sourceType, compareSnapshots(previous, next));
+      snapshots.set(result.sourceType, next);
+    }
   }
   const staged = await db.runTransaction(async (transaction) => {
     const [control, github, notion] = await transaction.getAll(
@@ -302,6 +312,9 @@ async function completeJob(
     return {changedTypes, aggregateRevisionId};
   });
   if (!staged) return;
+  await persistNormalizedDocuments(
+    job.projectId, snapshots, changes, "staging"
+  );
   await db.runTransaction(async (transaction) => {
     const control = await transaction.get(references.control);
     if (control.get("activeJobId") !== job.jobId) return;
@@ -344,6 +357,96 @@ async function completeJob(
       updatedAt: now,
     }, {merge: true});
   });
+  await promoteNormalizedDocuments(job.projectId, snapshots, changes);
+}
+
+/**
+ * Persists changed Documents under the source metadata document.
+ * @param {string} projectId Project document ID
+ * @param {Map} snapshots Newly collected snapshots
+ * @param {Map} changes Document change sets
+ * @param {string} revisionState Document revision state
+ * @return {Promise<void>} Persistence completion
+ */
+async function persistNormalizedDocuments(
+  projectId: string,
+  snapshots: Map<PublicSourceType, SourceSnapshot>,
+  changes: Map<PublicSourceType, ReturnType<typeof compareSnapshots>>,
+  revisionState: "staging" | "active"
+): Promise<void> {
+  const db = getFirestore();
+  const references = sourceSyncReferences(db, projectId);
+  for (const [sourceType, snapshot] of snapshots) {
+    const changeSet = changes.get(sourceType);
+    if (!changeSet) continue;
+    const byKey = new Map(normalizeSnapshot(snapshot).map((doc) => [
+      doc.metadata.itemKey,
+      doc,
+    ]));
+    const changedKeys = new Set([
+      ...changeSet.added,
+      ...changeSet.modified,
+    ]);
+    const documents = [...changedKeys]
+      .map((key) => byKey.get(key))
+      .filter((doc): doc is NormalizedDocument => doc !== undefined);
+    const source = sourceType === "github" ?
+      references.github : references.notion;
+    const writes: Array<{
+      reference: DocumentReference;
+      data: DocumentData;
+    }> = [];
+    for (const document of documents) {
+      writes.push({
+        reference: source.collection("documents").doc(document.documentId),
+        data: {
+          ...document,
+          status: "active",
+          revisionState,
+          updatedAt: Timestamp.now(),
+        },
+      });
+    }
+    for (const key of changeSet.deleted) {
+      const sourceId = sha256(
+        `${sourceType}\u0000${snapshot.canonicalUrl}`
+      );
+      const documentId = sha256(`${sourceId}\u0000${key}`);
+      writes.push({
+        reference: source.collection("documents").doc(documentId),
+        data: {
+          documentId,
+          sourceType,
+          status: "deleted",
+          revisionState,
+          sourceRevision: snapshot.sourceRevision,
+          updatedAt: Timestamp.now(),
+        },
+      });
+    }
+    for (let index = 0; index < writes.length; index += 450) {
+      const batch = db.batch();
+      writes.slice(index, index + 450).forEach((write) => {
+        batch.set(write.reference, write.data, {merge: true});
+      });
+      await batch.commit();
+    }
+  }
+}
+
+/**
+ * Promotes staged normalized Documents after the source revision is committed.
+ * @param {string} projectId Project document ID
+ * @param {Map} snapshots Newly collected snapshots
+ * @param {Map} changes Document change sets
+ * @return {Promise<void>} Promotion completion
+ */
+async function promoteNormalizedDocuments(
+  projectId: string,
+  snapshots: Map<PublicSourceType, SourceSnapshot>,
+  changes: Map<PublicSourceType, ReturnType<typeof compareSnapshots>>
+): Promise<void> {
+  await persistNormalizedDocuments(projectId, snapshots, changes, "active");
 }
 
 /**

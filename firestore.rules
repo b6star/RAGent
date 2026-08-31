@@ -177,6 +177,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /projects/{projectId}/sources/{sourceType}/documents/{documentId} {
+      allow read: if isOwner(projectId) || isMember(projectId);
+      allow write: if false;
+    }
+
     match /users/{userId}/ai_chats/{projectId}/sessions/{sessionId} {
       allow read, write: if isUser(userId);
     }

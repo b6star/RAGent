@@ -1,0 +1,45 @@
+[debug] [2026-08-31T07:37:42.077Z] ----------------------------------------------------------------------
+[debug] [2026-08-31T07:37:42.078Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\baejunsung\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:syncPublicSources firestore:rules
+[debug] [2026-08-31T07:37:42.079Z] CLI Version:   15.28.2
+[debug] [2026-08-31T07:37:42.079Z] Platform:      win32
+[debug] [2026-08-31T07:37:42.079Z] Node Version:  v24.18.0
+[debug] [2026-08-31T07:37:42.079Z] Detected Agent: unknown
+[debug] [2026-08-31T07:37:42.079Z] Time:          Mon Aug 31 2026 16:37:42 GMT+0900 (한국 표준시)
+[debug] [2026-08-31T07:37:42.079Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-31T07:37:43.063Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-31T07:37:43.064Z] > authorizing via signed-in user (baejunsung1225@gmail.com)
+[debug] [2026-08-31T07:37:43.064Z] [iam] checking project ragent-d6b01 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-08-31T07:37:43.075Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:43.075Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:43.076Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions [none]
+[debug] [2026-08-31T07:37:43.077Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions  x-goog-user-project=ragent-d6b01
+[debug] [2026-08-31T07:37:43.077Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-08-31T07:37:43.327Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions 200
+[debug] [2026-08-31T07:37:43.327Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/ragent-d6b01:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-08-31T07:37:43.328Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:43.328Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:43.328Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-08-31T07:37:43.328Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-08-31T07:37:44.304Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-08-31T07:37:44.304Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/ragent-d6b01/serviceAccounts/ragent-d6b01@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'ragent-d6b01'...
+[info] 
+[info] i  deploying firestore, functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run lint
+[info] Running command: npm --prefix "$RESOURCE_DIR" run build
+[info] +  functions: Finished running predeploy script. 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-08-31T07:37:52.862Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:52.862Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:52.862Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/ragent-d6b01/databases/(default) [none]
+[debug] [2026-08-31T07:37:52.987Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/ragent-d6b01/databases/(default) 200
+[debug] [2026-08-31T07:37:52.988Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/ragent-d6b01/databases/(default) {"name":"projects/ragent-d6b01/databases/(default)","uid":"9d12fe2f-b433-4b34-95ea-e3db8ccf9638","createTime":"2026-08-20T16:55:43.081734Z","updateTime":"2026-08-20T16:55:43.081734Z","locationId":"asia-northeast3","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-08-31T06:37:53.979225Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"v","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","enhancedTextSearchQueryMode":"ENHANCED_QUERY_MODE_ENABLED","etag":"IPvKsoquypYDMOrJgeeNwZYD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-08-31T07:37:52.990Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:52.990Z] Checked if tokens are valid: true, expires at: 1788164888557
+[debug] [2026-08-31T07:37:52.990Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/ragent-d6b01:test [none]
+[debug] [2026-08-31T07:37:52.990Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/ragent-d6b01:test [omitted]
