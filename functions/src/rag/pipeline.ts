@@ -24,7 +24,8 @@ const EMBEDDING_TASK_NAME = [
 /** Builds and queues a RAG revision from active normalized source documents. */
 export async function stageRagRevision(
   projectId: string,
-  sourceRevisionIds: Record<string, string | null>
+  sourceRevisionIds: Record<string, string | null>,
+  triggeredBy?: string
 ): Promise<string | null> {
   const revisionId = await createPendingRagRevision(
     projectId,
@@ -73,6 +74,7 @@ export async function stageRagRevision(
   await getFunctions().taskQueue(EMBEDDING_TASK_NAME).enqueue({
     projectId,
     revisionId,
+    ...(triggeredBy ? {triggeredBy} : {}),
   });
   return revisionId;
 }

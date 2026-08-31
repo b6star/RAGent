@@ -18,11 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -268,6 +270,14 @@ private fun ApiUsageCard(dashboard: AiUsageDashboard) {
             UsageLine("개발자 API", dashboard.developer)
             UsageLine("개인 API", dashboard.personal)
 
+            UsageLine("서버 임베딩", dashboard.serverEmbedding)
+            UsageLine("서버 검색", dashboard.serverSearch)
+
+            EmbeddingUsageInfo(
+                embedding = dashboard.serverEmbedding,
+                search = dashboard.serverSearch
+            )
+
             if (dashboard.personalModels.isNotEmpty()) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Text(
@@ -318,6 +328,48 @@ private fun UsageLine(label: String, usage: AiTokenUsage) {
             "${formatTokens(usage.totalTokens)} 토큰",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Black
+        )
+    }
+}
+
+@Composable
+private fun EmbeddingUsageInfo(
+    embedding: AiTokenUsage,
+    search: AiTokenUsage
+) {
+    var showInfo by remember { mutableStateOf(false) }
+    val totalTokens = embedding.totalTokens + search.totalTokens
+    val chunkCount = embedding.chunkCount + search.chunkCount
+    val characterCount = embedding.characterCount + search.characterCount
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Embedding 사용량", fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${formatTokens(totalTokens)} 추정 토큰")
+            IconButton(onClick = { showInfo = true }) {
+                Icon(Icons.Default.Info, contentDescription = "Embedding 계산 정보")
+            }
+        }
+    }
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { showInfo = false },
+            title = { Text("Embedding 사용량 계산 정보") },
+            text = {
+                Text(
+                    "추정 토큰: ${formatTokens(totalTokens)}\n" +
+                        "Chunk 수: ${formatTokens(chunkCount)}\n" +
+                        "전체 문자 수: ${formatTokens(characterCount)}\n\n" +
+                        "계산 방법: 전체 문자 수 ÷ 4\n" +
+                        "실제 토큰 수가 아닌 표시용 추정값입니다."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showInfo = false }) { Text("확인") }
+            }
         )
     }
 }

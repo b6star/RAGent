@@ -36,6 +36,7 @@ type ClaimedSource = {
 type ClaimedJob = {
   projectId: string;
   jobId: string;
+  triggeredBy: string;
   sources: ClaimedSource[];
 };
 
@@ -168,10 +169,11 @@ async function claimJob(
   const db = getFirestore();
   const references = sourceSyncReferences(db, projectId);
   return db.runTransaction(async (transaction) => {
-    const [control, github, notion] = await transaction.getAll(
+    const [control, github, notion, job] = await transaction.getAll(
       references.control,
       references.github,
-      references.notion
+      references.notion,
+      references.jobs.doc(jobId)
     );
     if (control.get("activeJobId") !== jobId) return null;
     const sources: ClaimedSource[] = [];
@@ -186,6 +188,8 @@ async function claimJob(
       }
     }
     if (!sources.length) return null;
+    const triggeredBy = job.get("requestedBy");
+    if (typeof triggeredBy !== "string" || !triggeredBy) return null;
     const now = Timestamp.now();
     transaction.set(references.control, {
       leaseOwner: `worker:${jobId}`,
@@ -212,7 +216,7 @@ async function claimJob(
       startedAt: now,
       updatedAt: now,
     }, {merge: true});
-    return {projectId, jobId, sources};
+    return {projectId, jobId, triggeredBy, sources};
   });
 }
 
@@ -367,7 +371,8 @@ async function completeJob(
     Object.fromEntries(results.map((result) => [
       result.sourceType,
       result.revisionId,
-    ]))
+    ])),
+    job.triggeredBy
   );
 }
 

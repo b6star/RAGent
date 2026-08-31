@@ -184,7 +184,7 @@ fun ProjectHomeScreen(
                                 .align(Alignment.TopCenter)
                                 .zIndex(2f)
                                 .padding(top = 8.dp)
-                        )
+                         )
                         DocsTab(
                             project,
                             onBack,

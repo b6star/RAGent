@@ -220,10 +220,13 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
                     AiUsageRecord(
                         modelName = document.getString("modelName") ?: "Unknown model",
                         keySource = document.getString("keySource") ?: "unknown",
+                        usageCategory = document.getString("usageCategory") ?: "",
                         inputTokens = document.getLong("inputTokens") ?: 0,
                         outputTokens = document.getLong("outputTokens") ?: 0,
                         thoughtsTokens = document.getLong("thoughtsTokens") ?: 0,
                         totalTokens = document.getLong("totalTokens") ?: 0,
+                        chunkCount = document.getLong("chunkCount") ?: 0,
+                        characterCount = document.getLong("characterCount") ?: 0,
                         projectId = document.getString("projectId"),
                         projectName = document.getString("projectName"),
                         sessionId = document.getString("sessionId"),

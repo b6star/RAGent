@@ -15,6 +15,7 @@ import {
 } from "./embedding";
 import {RagChunk} from "./chunking/types";
 import {promoteReadyRagRevision} from "./revision";
+import {writeServerUsage} from "../usage";
 
 /** Runs the server-side embedding queue created after source synchronization. */
 export const embedRagRevisionTask = onTaskDispatched({
@@ -27,6 +28,8 @@ export const embedRagRevisionTask = onTaskDispatched({
     request.data.projectId.trim() : "";
   const revisionId = typeof request.data?.revisionId === "string" ?
     request.data.revisionId.trim() : "";
+  const triggeredBy = typeof request.data?.triggeredBy === "string" ?
+    request.data.triggeredBy.trim() : "";
   if (!projectId || !revisionId) {
     throw new Error("Embedding task payload is invalid");
   }
@@ -42,16 +45,24 @@ export const embedRagRevisionTask = onTaskDispatched({
   }
 
   const chunksSnapshot = await references.chunks(revisionId).get();
-  const chunks = chunksSnapshot.docs
+  const allChunkDocs = chunksSnapshot.docs;
+  const chunks = allChunkDocs
     .filter((snapshot) => snapshot.get("embeddingStatus") !== "reused" &&
       snapshot.get("embeddingStatus") !== "embedded")
     .map((snapshot) => snapshot.data() as RagChunk);
+  const totalChunkCount = allChunkDocs.length;
+  const completedChunkCount = totalChunkCount - chunks.length;
+  const totalBatchCount = Math.ceil(
+    totalChunkCount / RAG_CONFIG.embedding.maximumBatchSize
+  );
   if (!chunks.length) {
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
-      completedChunkCount: 0,
-      completedBatchCount: 0,
+      chunkCount: totalChunkCount,
+      completedChunkCount: totalChunkCount,
+      completedBatchCount: totalBatchCount,
+      totalBatchCount,
       completedAt,
       updatedAt: completedAt,
     }, {merge: true});
@@ -67,17 +78,16 @@ export const embedRagRevisionTask = onTaskDispatched({
   const now = Timestamp.now();
   await revisionReference.set({
     status: "embedding",
-    chunkCount: chunks.length,
-    completedChunkCount: 0,
-    totalBatchCount: Math.ceil(
-      chunks.length / RAG_CONFIG.embedding.maximumBatchSize
-    ),
+    chunkCount: totalChunkCount,
+    completedChunkCount,
+    totalBatchCount,
     startedAt: now,
     updatedAt: now,
   }, {merge: true});
   await references.embeddingJobs(revisionId).doc("default").set({
     status: "running",
     attempt: request.retryCount + 1,
+    cursor: lastCompletedChunkId(allChunkDocs),
     updatedAt: now,
   }, {merge: true});
 
@@ -87,7 +97,8 @@ export const embedRagRevisionTask = onTaskDispatched({
       createGeminiEmbeddingClient(apiKey),
       async (completedChunkCount) => {
         await revisionReference.set({
-          completedChunkCount,
+          completedChunkCount: completedChunkCount +
+            (totalChunkCount - chunks.length),
           updatedAt: Timestamp.now(),
         }, {merge: true});
       }
@@ -96,10 +107,10 @@ export const embedRagRevisionTask = onTaskDispatched({
     const completedAt = Timestamp.now();
     await revisionReference.set({
       status: "ready",
-      completedChunkCount: chunks.length,
-      completedBatchCount: Math.ceil(
-        chunks.length / RAG_CONFIG.embedding.maximumBatchSize
-      ),
+      chunkCount: totalChunkCount,
+      completedChunkCount: totalChunkCount,
+      completedBatchCount: totalBatchCount,
+      totalBatchCount,
       completedAt,
       updatedAt: completedAt,
     }, {merge: true});
@@ -108,6 +119,20 @@ export const embedRagRevisionTask = onTaskDispatched({
       status: "completed",
       updatedAt: completedAt,
     }, {merge: true});
+    if (triggeredBy) {
+      await writeServerUsage({
+        uid: triggeredBy,
+        usageId: `embedding-${revisionId}-attempt-${request.retryCount}`,
+        category: "server_embedding",
+        inputTokens: estimateTokens(chunks),
+        chunkCount: chunks.length,
+        characterCount: chunks.reduce(
+          (total, chunk) => total + chunk.content.length, 0
+        ),
+        projectId,
+        modelName: RAG_CONFIG.embedding.model,
+      });
+    }
     logger.info("RAG embedding completed", {
       projectId,
       revisionId,
@@ -118,3 +143,19 @@ export const embedRagRevisionTask = onTaskDispatched({
     throw error;
   }
 });
+
+function lastCompletedChunkId(
+  snapshots: readonly FirebaseFirestore.QueryDocumentSnapshot[]
+): string | null {
+  for (let index = snapshots.length - 1; index >= 0; index -= 1) {
+    const status = snapshots[index].get("embeddingStatus");
+    if (status === "reused" || status === "embedded") return snapshots[index].id;
+  }
+  return null;
+}
+
+function estimateTokens(chunks: readonly RagChunk[]): number {
+  return chunks.reduce(
+    (total, chunk) => total + Math.ceil(chunk.content.length / 4), 0
+  );
+}

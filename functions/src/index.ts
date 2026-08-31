@@ -19,6 +19,7 @@ export {
 } from "./rag/revision";
 export {runRagEmbedding} from "./rag/embedding";
 export {embedRagRevisionTask} from "./rag/task";
+export {searchRagChunks} from "./rag/retrieval";
 export {purgeLegacyEmbeddingQueue} from "./rag/queueMigration";
 
 admin.initializeApp();
@@ -185,6 +186,7 @@ async function writeAiUsage(
       provider,
       modelName,
       keySource,
+      usageCategory: keySource === "personal" ? "personal" : "developer",
       ...usage,
       projectId: projectId ?? null,
       projectName,
