@@ -9,7 +9,7 @@ import {RAG_CONFIG} from "./config";
 import {ragReferences} from "./firestore";
 import {RagChunk} from "./chunking/types";
 import {RagRevisionDocument} from "./model";
-import {assertRagTransition} from "./revision";
+import {assertRagTransition, promoteReadyRagRevision} from "./revision";
 
 export const embeddingApiKey = defineSecret("GEMINI_EMBEDDING_API_KEY");
 
@@ -88,6 +88,7 @@ export async function persistEmbeddedChunks(
       batch.set(chunkReference, {
         ...chunk,
         revisionId,
+        embeddingStatus: "embedded",
         updatedAt: Timestamp.now(),
       }, {merge: true});
       batch.set(vectorReference, {
@@ -98,6 +99,7 @@ export async function persistEmbeddedChunks(
         dimension: RAG_CONFIG.embedding.dimension,
         model: RAG_CONFIG.embedding.model,
         modelVersion: RAG_CONFIG.embedding.modelVersion,
+        embeddingStatus: "embedded",
         updatedAt: Timestamp.now(),
       }, {merge: true});
     });
@@ -187,6 +189,7 @@ export const runRagEmbedding = onCall({
     completedAt,
     updatedAt: completedAt,
   }, {merge: true});
+  await promoteReadyRagRevision(projectId, revisionId);
   await references.embeddingJobs(revisionId).doc("default").set({
     status: "completed",
     inputTokenCount: 0,

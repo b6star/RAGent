@@ -27,6 +27,7 @@ import {
   PublicSourceType,
 } from "./model";
 import {collectNotionSource} from "./notion";
+import {stageRagRevision} from "../rag/pipeline";
 
 type ClaimedSource = {
   sourceType: PublicSourceType;
@@ -363,6 +364,13 @@ async function completeJob(
       updatedAt: now,
     }, {merge: true});
   });
+  await stageRagRevision(
+    job.projectId,
+    Object.fromEntries(results.map((result) => [
+      result.sourceType,
+      result.revisionId,
+    ]))
+  );
 }
 
 /**
