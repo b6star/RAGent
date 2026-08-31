@@ -89,9 +89,12 @@ function githubMetadata(snapshot: SourceSnapshot, item: SourceSnapshotItem) {
     repository,
     path,
     blobId,
-    symbol: item.anchor?.symbol,
-    lineStart: item.anchor?.lineStart,
-    lineEnd: item.anchor?.lineEnd,
+    ...(item.anchor?.symbol !== undefined ?
+      {symbol: item.anchor.symbol} : {}),
+    ...(item.anchor?.lineStart !== undefined ?
+      {lineStart: item.anchor.lineStart} : {}),
+    ...(item.anchor?.lineEnd !== undefined ?
+      {lineEnd: item.anchor.lineEnd} : {}),
   };
 }
 
@@ -107,8 +110,11 @@ function notionMetadata(item: SourceSnapshotItem) {
     sourceUrl: item.url,
     pageId,
     parentPageId: item.anchor?.parentPageId ?? null,
-    blockId: item.anchor?.blockId,
-    headingPath: item.anchor?.headingPath,
-    structureFingerprint: item.anchor?.structureFingerprint,
+    ...(item.anchor?.blockId !== undefined ?
+      {blockId: item.anchor.blockId} : {}),
+    ...(item.anchor?.headingPath !== undefined ?
+      {headingPath: item.anchor.headingPath} : {}),
+    ...(item.anchor?.structureFingerprint !== undefined ?
+      {structureFingerprint: item.anchor.structureFingerprint} : {}),
   };
 }

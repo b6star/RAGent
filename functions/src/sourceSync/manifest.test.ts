@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {gzipSync} from "node:zlib";
 
-import {compareSnapshots, createSourceSnapshot, sha256} from "./manifest";
+import {
+  compareSnapshots,
+  createSourceSnapshot,
+  decodeSourceSnapshot,
+  sha256,
+} from "./manifest";
 
 test("manifest hashing is deterministic and sensitive to item content", () => {
   const itemA = {
@@ -89,3 +95,26 @@ test("extractor version changes re-normalize existing documents", () => {
     added: [], modified: ["a", "b"], deleted: [],
   });
 });
+
+test(
+  "snapshot decoding accepts gzip and transparently decoded JSON",
+  async () => {
+    const snapshot = createSourceSnapshot(
+      "github",
+      "https://github.com/example/repository",
+      "commit",
+      [{
+        key: "README.md",
+        url: null,
+        title: "README",
+        content: "hello",
+        contentHash: sha256("hello"),
+        byteSize: 5,
+      }]
+    );
+    const json = Buffer.from(JSON.stringify(snapshot));
+
+    assert.deepEqual(await decodeSourceSnapshot(json), snapshot);
+    assert.deepEqual(await decodeSourceSnapshot(gzipSync(json)), snapshot);
+  }
+);

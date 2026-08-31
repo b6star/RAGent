@@ -28,6 +28,18 @@ data class SourceSyncErrorDocument(
     val occurredAt: Timestamp? = null
 )
 
+/** Read-only Android representation of the latest RAG revision status. */
+data class RagRevisionStatusDocument(
+    val status: String = "",
+    val chunkCount: Int = 0,
+    val completedChunkCount: Int = 0,
+    val completedBatchCount: Int = 0,
+    val totalBatchCount: Int = 0,
+    val lastError: SourceSyncErrorDocument? = null,
+    val updatedAt: Timestamp? = null,
+    val completedAt: Timestamp? = null
+)
+
 /** Read-only Android representation of a project Source metadata document. */
 data class ProjectSourceDocument(
     val schemaVersion: Int = 0,

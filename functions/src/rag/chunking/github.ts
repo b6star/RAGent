@@ -40,9 +40,10 @@ export function chunkGithubDocument(
     pieces.forEach((content, index) => {
       const anchor = {
         ...document.metadata,
-        symbol: segment.symbol,
-        lineStart: segment.lineStart,
-        lineEnd: segment.lineEnd,
+        ...(segment.symbol !== undefined ? {symbol: segment.symbol} : {}),
+        ...(segment.lineStart !== undefined ?
+          {lineStart: segment.lineStart} : {}),
+        ...(segment.lineEnd !== undefined ? {lineEnd: segment.lineEnd} : {}),
       };
       chunks.push({
         chunkId: stableChunkId(

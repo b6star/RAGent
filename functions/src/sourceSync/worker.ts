@@ -5,8 +5,6 @@ import {
   Timestamp,
 } from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
-import {gunzip} from "node:zlib";
-import {promisify} from "node:util";
 import {defineString} from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import {onTaskDispatched} from "firebase-functions/v2/tasks";
@@ -18,6 +16,7 @@ import {collectGithubSource} from "./github";
 import {normalizeSnapshot, NormalizedDocument} from "./document";
 import {
   compareSnapshots,
+  decodeSourceSnapshot,
   sha256,
   SourceCollectionResult,
   SourceSnapshot,
@@ -27,6 +26,7 @@ import {
   PublicSourceType,
 } from "./model";
 import {collectNotionSource} from "./notion";
+import {stageRagRevision} from "../rag/pipeline";
 
 type ClaimedSource = {
   sourceType: PublicSourceType;
@@ -39,7 +39,6 @@ type ClaimedJob = {
   sources: ClaimedSource[];
 };
 
-const gunzipAsync = promisify(gunzip);
 const MAX_CHANGE_KEYS = 1000;
 
 const notionCrawlerUrl = defineString("NOTION_CRAWLER_URL", {
@@ -363,6 +362,13 @@ async function completeJob(
       updatedAt: now,
     }, {merge: true});
   });
+  await stageRagRevision(
+    job.projectId,
+    Object.fromEntries(results.map((result) => [
+      result.sourceType,
+      result.revisionId,
+    ]))
+  );
 }
 
 /**
@@ -397,11 +403,19 @@ async function persistNormalizedDocuments(
       .filter((doc): doc is NormalizedDocument => doc !== undefined);
     const source = sourceType === "github" ?
       references.github : references.notion;
+    const existingDocuments = await source.collection("documents").get();
+    const hasActiveDocuments = existingDocuments.docs.some((document) =>
+      document.get("status") === "active" &&
+      document.get("revisionState") === "active"
+    );
+    const needsInitialBackfill = !hasActiveDocuments;
     const writes: Array<{
       reference: DocumentReference;
       data: DocumentData;
     }> = [];
-    for (const document of documents) {
+    const documentsToPersist = needsInitialBackfill ?
+      normalizeSnapshot(snapshot) : documents;
+    for (const document of documentsToPersist) {
       writes.push({
         reference: source.collection("documents").doc(document.documentId),
         data: {
@@ -465,10 +479,8 @@ async function downloadSnapshot(
   objectPath: string
 ): Promise<SourceSnapshot | null> {
   try {
-    const [compressed] = await bucket.file(objectPath).download();
-    return JSON.parse(
-      (await gunzipAsync(compressed)).toString("utf8")
-    ) as SourceSnapshot;
+    const [downloaded] = await bucket.file(objectPath).download();
+    return await decodeSourceSnapshot(downloaded);
   } catch (error) {
     logger.warn("Source manifest comparison skipped snapshot", {
       objectPath,
@@ -510,7 +522,12 @@ async function renewFailedAttempt(
     const control = await transaction.get(references.control);
     if (control.get("activeJobId") !== job.jobId) return;
     const now = Timestamp.now();
-    const persistedError = {...error, occurredAt: now};
+    const persistedError = {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+      occurredAt: now,
+    };
     transaction.set(references.control, {
       leaseExpiresAt: Timestamp.fromMillis(
         now.toMillis() + SOURCE_SYNC_CONFIG.leaseMilliseconds
@@ -544,7 +561,12 @@ async function failJob(
     );
     if (control.get("activeJobId") !== job.jobId) return;
     const now = Timestamp.now();
-    const persistedError = {...error, occurredAt: now};
+    const persistedError = {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+      occurredAt: now,
+    };
     transaction.set(references.status, {
       ...(status.exists ? {} : createInitialSourceSyncStatus(now)),
       status: "error",
