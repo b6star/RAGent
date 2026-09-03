@@ -107,8 +107,13 @@ export function createRagError(
 }
 
 export function validateRagLimits(
-  documentCount: number,
-  chunkCount: number
+  {
+    documentCount,
+    chunkCount,
+  }: {
+    documentCount: number;
+    chunkCount: number;
+  }
 ): void {
   if (documentCount < 0 ||
       documentCount > RAG_CONFIG.limits.maximumDocumentsPerRevision) {

@@ -33,7 +33,7 @@ test("embedding batches preserve chunk order", async () => {
       async embedContents(texts) {
         requests.push([...texts]);
         return texts.map((_, index) => [index + 1]);
-      },
+      }
     }
   );
 

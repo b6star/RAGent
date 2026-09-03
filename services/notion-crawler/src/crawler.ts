@@ -14,7 +14,10 @@ import {
   persistSnapshot,
 } from "./snapshot.js";
 
-type QueuedPage = {url: string; depth: number};
+type QueuedPage = {
+    url: string;
+    depth: number;
+};
 type PageSnapshot = {
   text: string;
   height: number;

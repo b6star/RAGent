@@ -18,10 +18,6 @@ export const RAG_CONFIG = Object.freeze({
     maximumBatchSize: 32,
     maximumInputTokens: 2_048,
   }),
-  job: Object.freeze({
-    maximumAttempts: 3,
-    leaseMilliseconds: 30 * 60 * 1000,
-  }),
   limits: Object.freeze({
     maximumDocumentsPerRevision: 20_000,
     maximumChunksPerRevision: 100_000,

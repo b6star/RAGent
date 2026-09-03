@@ -37,7 +37,7 @@ export function createGeminiEmbeddingClient(apiKey: string): EmbeddingClient {
         config: {
           taskType: "RETRIEVAL_DOCUMENT",
           outputDimensionality: RAG_CONFIG.embedding.dimension,
-        },
+        }
       });
       const values = response.embeddings?.map((embedding) =>
         embedding.values ?? []
@@ -47,7 +47,7 @@ export function createGeminiEmbeddingClient(apiKey: string): EmbeddingClient {
       }
       values.forEach(validateEmbeddingDimension);
       return values;
-    },
+    }
   };
 }
 
@@ -83,7 +83,9 @@ export async function persistEmbeddedChunks(
 ): Promise<void> {
   const db = getFirestore();
   const references = ragReferences(db, projectId);
-  for (let index = 0; index < embeddedChunks.length; index += 400) {
+  // Each chunk produces one chunk write and one vector write.
+  // Keep each Firestore batch within the 500-write limit.
+  for (let index = 0; index < embeddedChunks.length; index += 250) {
     const batch = db.batch();
     embeddedChunks.slice(index, index + 400).forEach(({chunk, embedding}) => {
       const chunkReference = references.chunks(revisionId).doc(chunk.chunkId);
